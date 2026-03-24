@@ -1,81 +1,10 @@
-from __future__ import annotations
-
-import json
-from typing import Any
-
-from openai import OpenAI
-from pydantic import BaseModel, Field
-
-
-class IntakeDecision(BaseModel):
-    event_date: str = Field(description="ISO date if inferable, else empty string")
-    month_bucket: str = Field(description="YYYY-MM bucket")
-    normalized_headline: str
-    concise_summary: str
-    source_links: list[str]
-    source_tiers: list[str]
-    corroboration_count: int
-    source_quality_assessment: str
-    tat_domains: list[str]
-    redline_primary: str
-    redline_secondary: str | None = ""
-    category_confidence: str = Field(description="High, Moderate, or Low")
-    impact_score: int = Field(description="1-5 integer")
-    status_candidate: str = Field(description="Signal, Watch candidate, or Triggered candidate")
-    direction: str = Field(description="Up, Down, or Neutral")
-    why_it_matters: str
-    duplicate_of_existing: bool = False
-
-
-SYSTEM_PROMPT = """You are the editorial intake triage system for Democracy Redline.
-Map news events into Democracy Redline categories conservatively.
-Rules:
-- Prefer false negatives to false positives.
-- Use only the supplied evidence.
-- Multi-domain mapping is allowed.
-- 'Triggered candidate' requires concrete action crossing a threshold, not rhetoric alone.
-- 'Watch candidate' means meaningful precursor action with structural relevance.
-- 'Signal' means relevant but below threshold.
-- If impact is primarily commentary or opinion, keep impact low.
-Return strict JSON matching the schema.
-"""
-
-
-def build_user_prompt(cluster: dict[str, Any], categories: dict[str, Any]) -> str:
-    return f"""
-Democracy Redline categories:
-{json.dumps(categories['democracy_redline_categories'], indent=2)}
-
-Trump Action Tracker domains:
-{json.dumps(categories['trump_action_tracker_domains'], indent=2)}
-
-Cluster to evaluate:
-{json.dumps(cluster, indent=2)}
-
-Choose the best primary and optional secondary Democracy Redline category.
-Assess source quality from the listed source tiers and corroboration count.
-"""
-
-
-def triage_clusters(
-    api_key: str,
-    model: str,
-    clusters: list[dict[str, Any]],
-    categories: dict[str, Any],
-    max_items: int,
-) -> list[dict[str, Any]]:
-    client = OpenAI(api_key=api_key)
-    outputs: list[dict[str, Any]] = []
-
-    for cluster in clusters[:max_items]:
-        response = client.responses.parse(
-            model=model,
-            input=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": build_user_prompt(cluster, categories)},
-            ],
-            text_format=IntakeDecision,
-        )
-        parsed = response.output_parsed.model_dump()
-        outputs.append(parsed)
-    return outputs
+feedparser==6.0.11
+requests==2.32.3
+python-dotenv==1.0.1
+pydantic==2.9.2
+PyYAML==6.0.2
+openai>=1.46.0
+gspread==6.1.2
+google-auth==2.35.0
+pandas==2.2.3
+python-dateutil==2.9.0.post0
