@@ -8,6 +8,9 @@ on:
 jobs:
   run-intake:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Check out repo
@@ -17,6 +20,12 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
 
       - name: Show repo files
         run: |
@@ -34,15 +43,16 @@ jobs:
       - name: Run intake pipeline
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_SHEETS_SPREADSHEET_ID: ${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
         run: |
           python main.py
-          
+
       - name: List output files
         if: always()
         run: |
           echo "Output folder contents:"
           ls -la output || true
-          
+
       - name: Upload output artifacts
         if: always()
         uses: actions/upload-artifact@v4
