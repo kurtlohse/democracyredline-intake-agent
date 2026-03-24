@@ -1,5 +1,3 @@
-from sheets_writer import append_csv_to_sheet
-
 from __future__ import annotations
 
 import csv
@@ -8,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fetch_feeds import fetch_all_feeds
+from sheets_writer import append_csv_to_sheet
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT_DIR = ROOT / "output"
@@ -73,6 +72,7 @@ def main() -> None:
         append_csv_to_sheet(str(OUTPUT_CSV), worksheet_name="Intake")
     except Exception as e:
         print(f"Google Sheets append failed: {e}")
-        
+
+
 if __name__ == "__main__":
     main()
