@@ -1,0 +1,45 @@
+feeds:
+  - name: Reuters World News
+    url: https://feeds.reuters.com/Reuters/worldNews
+    source_tier: Tier 2
+    reliability: 0.95
+
+  - name: Associated Press Politics
+    url: https://apnews.com/hub/politics/rss
+    source_tier: Tier 2
+    reliability: 0.95
+
+  - name: NPR Politics
+    url: https://feeds.npr.org/1014/rss.xml
+    source_tier: Tier 2
+    reliability: 0.88
+
+  - name: ProPublica
+    url: https://www.propublica.org/feeds/propublica/main
+    source_tier: Tier 2
+    reliability: 0.90
+
+  - name: Brennan Center
+    url: https://www.brennancenter.org/rss.xml
+    source_tier: Tier 2
+    reliability: 0.90
+
+  - name: Freedom of the Press Foundation
+    url: https://freedom.press/feed/
+    source_tier: Tier 2
+    reliability: 0.86
+
+  - name: Lawfare
+    url: https://www.lawfaremedia.org/rss.xml
+    source_tier: Tier 2
+    reliability: 0.86
+
+  - name: SCOTUSblog
+    url: https://www.scotusblog.com/feed/
+    source_tier: Tier 2
+    reliability: 0.85
+
+  - name: DOJ Press Releases
+    url: https://www.justice.gov/feeds/press-release.xml
+    source_tier: Tier 1
+    reliability: 0.93
