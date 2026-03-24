@@ -36,7 +36,13 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python main.py
-
+          
+      - name: List output files
+        if: always()
+        run: |
+          echo "Output folder contents:"
+          ls -la output || true
+          
       - name: Upload output artifacts
         if: always()
         uses: actions/upload-artifact@v4
