@@ -1,3 +1,5 @@
+from sheets_writer import append_csv_to_sheet
+
 from __future__ import annotations
 
 import csv
@@ -67,6 +69,10 @@ def main() -> None:
 
     print(f"Wrote {len(filtered)} rows to {OUTPUT_CSV}")
 
-
+    try:
+        append_csv_to_sheet(str(OUTPUT_CSV), worksheet_name="Intake")
+    except Exception as e:
+        print(f"Google Sheets append failed: {e}")
+        
 if __name__ == "__main__":
     main()
