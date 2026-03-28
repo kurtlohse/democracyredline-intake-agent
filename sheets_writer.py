@@ -1,51 +1,101 @@
 from __future__ import annotations
 
-import csv
 import os
-from pathlib import Path
+from typing import Sequence
 
-import gspread
 import google.auth
+import gspread
 
 
-def append_csv_to_sheet(csv_path: str, worksheet_name: str = "Intake") -> int:
-    spreadsheet_id = os.getenv("GOOGLE_SHEETS_SPREADSHEET_ID")
-    if not spreadsheet_id:
-        print("No GOOGLE_SHEETS_SPREADSHEET_ID set; skipping Sheets write.")
-        return 0
-
+def get_gspread_client() -> gspread.Client:
     credentials, _ = google.auth.default(
         scopes=[
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
         ]
     )
+    return gspread.authorize(credentials)
 
-    gc = gspread.authorize(credentials)
-    sh = gc.open_by_key(spreadsheet_id)
-    ws = sh.worksheet(worksheet_name)
 
-    csv_file = Path(csv_path)
-    if not csv_file.exists():
-        print(f"CSV file not found: {csv_path}")
+def get_or_create_worksheet(
+    spreadsheet: gspread.Spreadsheet,
+    worksheet_name: str,
+    rows: int = 2000,
+    cols: int = 30,
+) -> gspread.Worksheet:
+    try:
+        return spreadsheet.worksheet(worksheet_name)
+    except gspread.WorksheetNotFound:
+        return spreadsheet.add_worksheet(title=worksheet_name, rows=rows, cols=cols)
+
+
+def ensure_header(
+    worksheet: gspread.Worksheet,
+    headers: Sequence[str],
+) -> None:
+    existing_header = worksheet.row_values(1)
+    if existing_header != list(headers):
+        if not existing_header:
+            worksheet.update("A1", [list(headers)])
+        else:
+            worksheet.update("A1", [list(headers)])
+
+
+def get_existing_links(worksheet: gspread.Worksheet, headers: Sequence[str]) -> set[str]:
+    try:
+        link_index = list(headers).index("link") + 1
+    except ValueError:
+        return set()
+
+    col_values = worksheet.col_values(link_index)
+    if len(col_values) <= 1:
+        return set()
+
+    return {value.strip() for value in col_values[1:] if value.strip()}
+
+
+def append_rows_to_sheet(
+    rows: list[dict[str, str]],
+    worksheet_name: str = "Intake",
+    headers: Sequence[str] | None = None,
+) -> int:
+    spreadsheet_id = os.getenv("GOOGLE_SHEETS_SPREADSHEET_ID")
+    if not spreadsheet_id:
+        print("No GOOGLE_SHEETS_SPREADSHEET_ID set; skipping Sheets write.")
         return 0
 
-    with open(csv_file, "r", encoding="utf-8", newline="") as f:
-        reader = csv.reader(f)
-        rows = list(reader)
-
-    if len(rows) <= 1:
-        print("No data rows found in CSV; nothing to append.")
+    if not rows:
+        print("No rows supplied; skipping Sheets write.")
         return 0
 
-    header, data_rows = rows[0], rows[1:]
+    if headers is None:
+        headers = list(rows[0].keys())
 
-    existing_header = ws.row_values(1)
-    if not existing_header:
-        ws.append_row(header)
+    gc = get_gspread_client()
+    spreadsheet = gc.open_by_key(spreadsheet_id)
+    worksheet = get_or_create_worksheet(spreadsheet, worksheet_name)
 
-    for row in data_rows:
-        ws.append_row(row, value_input_option="RAW")
+    ensure_header(worksheet, headers)
+    existing_links = get_existing_links(worksheet, headers)
 
-    print(f"Appended {len(data_rows)} rows to worksheet '{worksheet_name}'.")
-    return len(data_rows)
+    new_rows: list[list[str]] = []
+    seen_this_batch: set[str] = set()
+
+    for row in rows:
+        link = row.get("link", "").strip()
+        if not link:
+            continue
+        if link in existing_links:
+            continue
+        if link in seen_this_batch:
+            continue
+
+        seen_this_batch.add(link)
+        new_rows.append([row.get(header, "") for header in headers])
+
+    if not new_rows:
+        print("No new rows to append after dedupe.")
+        return 0
+
+    worksheet.append_rows(new_rows, value_input_option="RAW")
+    return len(new_rows)
