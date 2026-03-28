@@ -2,3 +2,4 @@ feedparser
 requests
 gspread
 google-auth
+PyYAML
