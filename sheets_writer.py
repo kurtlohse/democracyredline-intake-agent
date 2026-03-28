@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import gspread
+import google.auth
 
 
 def append_csv_to_sheet(csv_path: str, worksheet_name: str = "Intake") -> int:
@@ -13,7 +14,14 @@ def append_csv_to_sheet(csv_path: str, worksheet_name: str = "Intake") -> int:
         print("No GOOGLE_SHEETS_SPREADSHEET_ID set; skipping Sheets write.")
         return 0
 
-    gc = gspread.service_account()
+    credentials, _ = google.auth.default(
+        scopes=[
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+    )
+
+    gc = gspread.authorize(credentials)
     sh = gc.open_by_key(spreadsheet_id)
     ws = sh.worksheet(worksheet_name)
 
