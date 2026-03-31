@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import os
 import re
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -28,35 +29,18 @@ HEADERS = [
     "primary_signal",
     "secondary_signal",
     "confidence",
+    "editor_priority",
+    "needs_manual_review",
+    "evidence_strength",
     "month_assigned",
     "include_in_report",
+    "score_impact_candidate",
+    "report_section",
+    "duplicate_cluster",
+    "final_disposition",
+    "reviewed_by",
+    "reviewed_on",
     "notes",
-]
-
-CATEGORY_OPTIONS = [
-    "Rule of Law & Court Compliance",
-    "Habeas Corpus & Due Process",
-    "Coercive State Power & Policing Norms",
-    "Political Targeting / Weaponization of Justice",
-    "Election Integrity & Peaceful Transfer",
-    "Press Freedom & Information Control",
-    "Civil Society & Associational Freedom",
-    "Institutional Checks & Anti-Corruption",
-    "Military & Intelligence Neutrality",
-]
-
-PRIMARY_SIGNAL_OPTIONS = [
-    "Executive overreach",
-    "Court defiance",
-    "Election interference",
-    "Political violence",
-    "Civil liberties erosion",
-    "Press intimidation",
-    "Corruption",
-    "Militarization",
-    "Weaponized justice",
-    "Institutional capture",
-    "Information control",
 ]
 
 
@@ -88,6 +72,19 @@ def confidence_from_reliability(value: Any) -> str:
     if score >= 0.80:
         return "Medium"
     return "Low"
+
+
+def evidence_strength_from_reliability(value: Any) -> str:
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return "Weak"
+
+    if score >= 0.90:
+        return "Strong"
+    if score >= 0.80:
+        return "Moderate"
+    return "Weak"
 
 
 def clean_text(value: Any) -> str:
@@ -380,7 +377,6 @@ def suggest_category(text: str, primary_signal: str) -> str:
         if any(keyword in text for keyword in keywords):
             return category
 
-    # Fallbacks from primary signal
     fallback_map = {
         "Election interference": "Election Integrity & Peaceful Transfer",
         "Court defiance": "Rule of Law & Court Compliance",
@@ -397,18 +393,166 @@ def suggest_category(text: str, primary_signal: str) -> str:
     return fallback_map.get(primary_signal, "")
 
 
+def suggest_score_impact_candidate(
+    source_tier: str,
+    confidence: str,
+    primary_signal: str,
+    text: str,
+) -> str:
+    high_impact_signals = {
+        "Election interference",
+        "Court defiance",
+        "Weaponized justice",
+        "Militarization",
+        "Institutional capture",
+    }
+
+    severe_keywords = [
+        "court order",
+        "contempt",
+        "certification",
+        "election",
+        "journalist arrested",
+        "reporter arrested",
+        "military deployment",
+        "national guard",
+        "deportation",
+        "federal search",
+        "raid",
+        "emergency power",
+        "insurrection act",
+    ]
+
+    if primary_signal in high_impact_signals and confidence in {"High", "Medium"}:
+        return "Likely"
+
+    if source_tier == "Tier 1" and any(k in text for k in severe_keywords):
+        return "Likely"
+
+    if primary_signal:
+        return "Possible"
+
+    return "Unlikely"
+
+
+def suggest_editor_priority(
+    source_tier: str,
+    confidence: str,
+    primary_signal: str,
+    score_impact_candidate: str,
+    text: str,
+) -> str:
+    urgent_keywords = [
+        "court order",
+        "contempt",
+        "certification",
+        "election official",
+        "supreme court",
+        "journalist arrested",
+        "reporter arrested",
+        "military deployment",
+        "national guard",
+        "deportation",
+        "insurrection act",
+        "emergency power",
+        "watchdog removed",
+        "inspector general",
+        "federal search",
+        "raid",
+    ]
+
+    if score_impact_candidate == "Likely" and (
+        source_tier == "Tier 1" or confidence == "High" or any(k in text for k in urgent_keywords)
+    ):
+        return "Urgent"
+
+    if score_impact_candidate == "Likely":
+        return "High"
+
+    if score_impact_candidate == "Possible" and primary_signal:
+        return "Medium"
+
+    return "Low"
+
+
+def suggest_needs_manual_review(
+    category: str,
+    primary_signal: str,
+    confidence: str,
+    include_in_report: str,
+    score_impact_candidate: str,
+) -> str:
+    if not category or not primary_signal:
+        return "Yes"
+
+    if score_impact_candidate in {"Likely", "Possible"}:
+        return "Yes"
+
+    if confidence == "High" and include_in_report == "Maybe":
+        return "Yes"
+
+    return "No"
+
+
+def make_duplicate_cluster_seed(item: dict[str, str]) -> str:
+    """
+    Creates a lightweight cluster hint from normalized title keywords.
+    This is only a suggestion, not a final event ID.
+    """
+    title = normalize(item.get("title", ""))
+    words = re.findall(r"[a-z0-9]+", title)
+
+    stopwords = {
+        "the", "a", "an", "and", "or", "of", "to", "in", "for", "on", "with",
+        "after", "over", "under", "at", "by", "from", "into", "about", "amid",
+        "trump", "us", "u", "s",
+    }
+
+    filtered = [w for w in words if w not in stopwords and len(w) > 2]
+    if not filtered:
+        return ""
+
+    common = filtered[:3]
+    return "CLUSTER-" + "-".join(common).upper()
+
+
 def build_row(item: Any) -> dict[str, str]:
     published_at = clean_text(getattr(item, "published_at", ""))
     source_reliability = clean_text(getattr(item, "source_reliability", ""))
+    source_tier = clean_text(getattr(item, "source_tier", ""))
     text = combined_text(item)
+
     primary_signal = suggest_primary_signal(text)
     category = suggest_category(text, primary_signal)
+    confidence = confidence_from_reliability(source_reliability)
+    evidence_strength = evidence_strength_from_reliability(source_reliability)
+    score_impact_candidate = suggest_score_impact_candidate(
+        source_tier=source_tier,
+        confidence=confidence,
+        primary_signal=primary_signal,
+        text=text,
+    )
+    editor_priority = suggest_editor_priority(
+        source_tier=source_tier,
+        confidence=confidence,
+        primary_signal=primary_signal,
+        score_impact_candidate=score_impact_candidate,
+        text=text,
+    )
+    include_in_report = "Maybe"
+    needs_manual_review = suggest_needs_manual_review(
+        category=category,
+        primary_signal=primary_signal,
+        confidence=confidence,
+        include_in_report=include_in_report,
+        score_impact_candidate=score_impact_candidate,
+    )
 
-    return {
+    row = {
         "date_collected": datetime.now(timezone.utc).isoformat(),
         "published_at": published_at,
         "source_name": clean_text(getattr(item, "source_name", "")),
-        "source_tier": clean_text(getattr(item, "source_tier", "")),
+        "source_tier": source_tier,
         "title": clean_text(getattr(item, "title", "")),
         "summary": clean_text(getattr(item, "summary", "")),
         "link": clean_text(getattr(item, "link", "")),
@@ -417,11 +561,41 @@ def build_row(item: Any) -> dict[str, str]:
         "democracy_redline_category": category,
         "primary_signal": primary_signal,
         "secondary_signal": "",
-        "confidence": confidence_from_reliability(source_reliability),
+        "confidence": confidence,
+        "editor_priority": editor_priority,
+        "needs_manual_review": needs_manual_review,
+        "evidence_strength": evidence_strength,
         "month_assigned": month_from_published(published_at),
-        "include_in_report": "Maybe",
+        "include_in_report": include_in_report,
+        "score_impact_candidate": score_impact_candidate,
+        "report_section": "",
+        "duplicate_cluster": "",
+        "final_disposition": "",
+        "reviewed_by": "",
+        "reviewed_on": "",
         "notes": "",
     }
+
+    row["duplicate_cluster"] = make_duplicate_cluster_seed(row)
+    return row
+
+
+def refine_duplicate_clusters(rows: list[dict[str, str]]) -> None:
+    """
+    Assign the same duplicate_cluster to rows with the same cluster seed.
+    Singletons keep blank cluster values to avoid visual noise.
+    """
+    seeds = [row.get("duplicate_cluster", "") for row in rows if row.get("duplicate_cluster", "")]
+    counts = Counter(seeds)
+
+    for row in rows:
+        seed = row.get("duplicate_cluster", "")
+        if not seed:
+            continue
+        if counts.get(seed, 0) < 2:
+            row["duplicate_cluster"] = ""
+        else:
+            row["duplicate_cluster"] = seed
 
 
 def dedupe_rows_by_link(rows: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -465,6 +639,7 @@ def main() -> None:
         rows.append(build_row(item))
 
     rows = dedupe_rows_by_link(rows)
+    refine_duplicate_clusters(rows)
     rows = rows[:max_items]
 
     write_csv(rows)
