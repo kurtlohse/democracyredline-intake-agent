@@ -389,17 +389,18 @@ def compute_escalation_score(
 ) -> int:
     score = 0
 
+    # Source quality should help, but not dominate
     if src_priority == "Top":
-        score += 3
-    elif src_priority == "High":
         score += 2
+    elif src_priority == "High":
+        score += 1
     elif src_priority == "Watch":
         score += 1
 
     if source_tier == "Tier 1":
-        score += 2
-    elif source_tier == "Tier 2":
         score += 1
+    elif source_tier == "Tier 2":
+        score += 0
 
     if confidence == "High":
         score += 2
@@ -409,23 +410,32 @@ def compute_escalation_score(
     if primary_signal:
         score += 2
 
-    if len(trigger_hits) >= 2:
+    # Trigger groups matter more than source prestige
+    if len(trigger_hits) >= 3:
+        score += 4
+    elif len(trigger_hits) == 2:
         score += 3
     elif len(trigger_hits) == 1:
         score += 1
 
-    if len(entity_hits) >= 2:
+    # Institution + target combinations are highly informative
+    if len(entity_hits) >= 3:
+        score += 3
+    elif len(entity_hits) == 2:
         score += 2
     elif len(entity_hits) == 1:
         score += 1
 
+    # Specific high-risk groups get extra lift
     if "weaponized_justice" in trigger_hits:
-        score += 2
+        score += 3
     if "court_defiance" in trigger_hits:
-        score += 2
+        score += 3
     if "election_interference" in trigger_hits:
-        score += 2
+        score += 3
     if "press_intimidation" in trigger_hits:
+        score += 2
+    if "coercive_state_power" in trigger_hits:
         score += 2
 
     return score
@@ -435,11 +445,11 @@ def suggest_score_impact_candidate(
     escalation_score: int,
     primary_signal: str,
 ) -> str:
-    if escalation_score >= 9:
+    if escalation_score >= 11:
         return "Likely"
-    if escalation_score >= 5 and primary_signal:
+    if escalation_score >= 6 and primary_signal:
         return "Possible"
-    if primary_signal:
+    if primary_signal and escalation_score >= 3:
         return "Possible"
     return "Unlikely"
 
@@ -448,9 +458,9 @@ def suggest_editor_priority(
     escalation_score: int,
     score_impact_candidate: str,
 ) -> str:
-    if escalation_score >= 10 or score_impact_candidate == "Likely":
+    if escalation_score >= 12:
         return "Urgent"
-    if escalation_score >= 7:
+    if escalation_score >= 8 or score_impact_candidate == "Likely":
         return "High"
     if escalation_score >= 4:
         return "Medium"
