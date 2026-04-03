@@ -1,11 +1,5 @@
 sources:
   # Top-priority straight-news / public-interest reporting
-  - name: Associated Press
-    url: https://apnews.com/index.rss
-    tier: Tier 1
-    reliability: 0.95
-    enabled: true
-
   - name: BBC World
     url: http://feeds.bbci.co.uk/news/world/rss.xml
     tier: Tier 1
@@ -37,28 +31,16 @@ sources:
     enabled: true
 
   # Legal / democracy-watch / institutional alerting sources
-  - name: Lawfare
-    url: https://www.lawfaremedia.org/rss.xml
+  - name: Lawfare Democracy & Elections
+    url: https://www.lawfaremedia.org/feeds/democracy-elections
     tier: Tier 2
     reliability: 0.88
     enabled: true
 
-  - name: Brennan Center
-    url: https://www.brennancenter.org/our-work/analysis-opinion/rss.xml
+  - name: Lawfare Courts & Litigation
+    url: https://www.lawfaremedia.org/feeds/courts-litigation
     tier: Tier 2
-    reliability: 0.86
-    enabled: true
-
-  - name: Democracy Forward
-    url: https://democracyforward.org/news/feed/
-    tier: Tier 2
-    reliability: 0.82
-    enabled: true
-
-  - name: Protect Democracy
-    url: https://protectdemocracy.org/feed/
-    tier: Tier 2
-    reliability: 0.84
+    reliability: 0.88
     enabled: true
 
   - name: Campaign Legal Center
@@ -67,8 +49,14 @@ sources:
     reliability: 0.83
     enabled: true
 
-  - name: States United Democracy Center
-    url: https://statesuniteddemocracy.org/feed/
+  - name: Protect Democracy
+    url: https://protectdemocracy.org/feed/
+    tier: Tier 2
+    reliability: 0.84
+    enabled: true
+
+  - name: Democracy Forward
+    url: https://democracyforward.org/news/feed/
     tier: Tier 2
     reliability: 0.82
     enabled: true
@@ -78,3 +66,22 @@ sources:
     tier: Tier 2
     reliability: 0.80
     enabled: true
+
+  # Disabled for now because the current endpoints were unstable or failed
+  - name: Associated Press
+    url: https://apnews.com/index.rss
+    tier: Tier 1
+    reliability: 0.95
+    enabled: false
+
+  - name: Brennan Center
+    url: https://www.brennancenter.org/our-work/analysis-opinion/rss.xml
+    tier: Tier 2
+    reliability: 0.86
+    enabled: false
+
+  - name: States United Democracy Center
+    url: https://statesuniteddemocracy.org/feed/
+    tier: Tier 2
+    reliability: 0.82
+    enabled: false
