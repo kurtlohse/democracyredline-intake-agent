@@ -1,0 +1,80 @@
+sources:
+  # Top-priority straight-news / public-interest reporting
+  - name: Associated Press
+    url: https://apnews.com/index.rss
+    tier: Tier 1
+    reliability: 0.95
+    enabled: true
+
+  - name: BBC World
+    url: http://feeds.bbci.co.uk/news/world/rss.xml
+    tier: Tier 1
+    reliability: 0.92
+    enabled: true
+
+  - name: BBC US & Canada
+    url: http://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml
+    tier: Tier 1
+    reliability: 0.92
+    enabled: true
+
+  - name: NPR Politics
+    url: https://feeds.npr.org/1014/rss.xml
+    tier: Tier 2
+    reliability: 0.88
+    enabled: true
+
+  - name: ProPublica
+    url: https://www.propublica.org/feeds/propublica/main
+    tier: Tier 1
+    reliability: 0.90
+    enabled: true
+
+  - name: SCOTUSblog
+    url: https://www.scotusblog.com/feed/
+    tier: Tier 2
+    reliability: 0.85
+    enabled: true
+
+  # Legal / democracy-watch / institutional alerting sources
+  - name: Lawfare
+    url: https://www.lawfaremedia.org/rss.xml
+    tier: Tier 2
+    reliability: 0.88
+    enabled: true
+
+  - name: Brennan Center
+    url: https://www.brennancenter.org/our-work/analysis-opinion/rss.xml
+    tier: Tier 2
+    reliability: 0.86
+    enabled: true
+
+  - name: Democracy Forward
+    url: https://democracyforward.org/news/feed/
+    tier: Tier 2
+    reliability: 0.82
+    enabled: true
+
+  - name: Protect Democracy
+    url: https://protectdemocracy.org/feed/
+    tier: Tier 2
+    reliability: 0.84
+    enabled: true
+
+  - name: Campaign Legal Center
+    url: https://campaignlegal.org/rss.xml
+    tier: Tier 2
+    reliability: 0.83
+    enabled: true
+
+  - name: States United Democracy Center
+    url: https://statesuniteddemocracy.org/feed/
+    tier: Tier 2
+    reliability: 0.82
+    enabled: true
+
+  - name: ACLU
+    url: https://www.aclu.org/news/feed
+    tier: Tier 2
+    reliability: 0.80
+    enabled: true
