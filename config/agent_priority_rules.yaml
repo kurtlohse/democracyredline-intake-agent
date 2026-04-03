@@ -1,0 +1,166 @@
+top_priority_sources:
+  - reuters
+  - associated press
+  - ap news
+  - agence france-presse
+  - afp
+  - bbc
+  - bbc news
+  - financial times
+  - washington post
+  - new york times
+  - propublica
+
+high_priority_sources:
+  - lawfare
+  - brennan center
+  - bright line watch
+  - v-dem
+  - international idea
+  - wall street journal
+  - wsj
+  - bloomberg
+  - npr
+  - pbs
+  - politico
+  - time
+  - the guardian
+  - cnn
+  - abc news
+  - nbc news
+  - cbs news
+
+watch_organizations:
+  - aclu
+  - brennan center
+  - democracy forward
+  - legal defense fund
+  - ldf
+  - pacific legal foundation
+  - lawfare
+  - campaign legal center
+  - protect democracy
+  - states united democracy center
+
+watch_institutions:
+  - fbi
+  - doj
+  - department of justice
+  - dhs
+  - department of homeland security
+  - ice
+  - pentagon
+  - national guard
+  - irs
+  - federal election commission
+  - election board
+  - supreme court
+  - department of defense
+
+watch_targets:
+  - journalist
+  - reporter
+  - judge
+  - election official
+  - candidate
+  - lawmaker
+  - opponent
+  - governor
+  - mayor
+  - protester
+  - activist
+  - civil servant
+  - inspector general
+  - watchdog
+
+urgent_trigger_groups:
+  court_defiance:
+    - court order
+    - defied court
+    - ignored court
+    - ignored ruling
+    - contempt
+    - injunction
+    - stay order
+    - refused to comply
+    - judicial order
+    - violated order
+
+  election_interference:
+    - election certification
+    - refused to certify
+    - ballot access
+    - voter purge
+    - elector
+    - voting machine
+    - peaceful transfer
+    - election official
+    - vote count
+    - voter roll
+    - gerrymander
+    - redistricting
+
+  weaponized_justice:
+    - release file
+    - investigate opponent
+    - retaliatory investigation
+    - political prosecution
+    - selective prosecution
+    - targeting rival
+    - fbi file
+    - doj file
+    - cease-and-desist
+    - smear
+    - grand jury against opponent
+    - prosecution of opponent
+
+  press_intimidation:
+    - journalist arrested
+    - reporter arrested
+    - newsroom raid
+    - subpoenaed reporter
+    - press access revoked
+    - media threat
+    - press freedom
+    - detained journalist
+
+  coercive_state_power:
+    - national guard
+    - military deployment
+    - domestic troop use
+    - insurrection act
+    - martial law
+    - mass raids
+    - federal agents
+    - riot control
+    - paramilitary
+    - surveillance powers
+
+  due_process:
+    - habeas
+    - due process
+    - indefinite detention
+    - detention without hearing
+    - deportation
+    - rendition
+    - without hearing
+    - without counsel
+
+  institutional_capture:
+    - inspector general fired
+    - watchdog removed
+    - civil service purge
+    - installed loyalist
+    - stacking agency
+    - independent agency
+    - purge
+    - watchdog ousted
+
+  corruption:
+    - bribery
+    - kickback
+    - pay to play
+    - self-dealing
+    - conflict of interest
+    - ethics violation
+    - corruption probe
