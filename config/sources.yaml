@@ -1,87 +1,118 @@
 sources:
-  # Top-priority straight-news / public-interest reporting
-  - name: BBC World
-    url: http://feeds.bbci.co.uk/news/world/rss.xml
+  # Evidence-confirmation sources
+  - name: ProPublica
+    url: https://www.propublica.org/feeds/propublica/main
     tier: Tier 1
+    role: evidence
     reliability: 0.92
+    enabled: true
+
+  - name: SCOTUSblog
+    url: https://www.scotusblog.com/feed/
+    tier: Tier 1
+    role: evidence
+    reliability: 0.90
     enabled: true
 
   - name: BBC US & Canada
     url: http://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml
     tier: Tier 1
-    reliability: 0.92
+    role: evidence
+    reliability: 0.88
     enabled: true
 
+  # Broad context sources kept on a tighter leash by admission logic
   - name: NPR Politics
     url: https://feeds.npr.org/1014/rss.xml
     tier: Tier 2
-    reliability: 0.88
+    role: evidence
+    reliability: 0.86
     enabled: true
 
-  - name: ProPublica
-    url: https://www.propublica.org/feeds/propublica/main
-    tier: Tier 1
-    reliability: 0.90
-    enabled: true
-
-  - name: SCOTUSblog
-    url: https://www.scotusblog.com/feed/
-    tier: Tier 2
-    reliability: 0.85
-    enabled: true
-
-  # Legal / democracy-watch / institutional alerting sources
+  # Specialist democracy / legal-watch sources
   - name: Lawfare Democracy & Elections
-    url: https://www.lawfaremedia.org/feeds/democracy-elections
+    url: https://www.lawfaremedia.org/rss.xml
     tier: Tier 2
-    reliability: 0.88
-    enabled: true
-
-  - name: Lawfare Courts & Litigation
-    url: https://www.lawfaremedia.org/feeds/courts-litigation
-    tier: Tier 2
-    reliability: 0.88
+    role: watchdog
+    reliability: 0.87
     enabled: true
 
   - name: Campaign Legal Center
     url: https://campaignlegal.org/rss.xml
     tier: Tier 2
-    reliability: 0.83
+    role: watchdog
+    reliability: 0.84
     enabled: true
 
   - name: Protect Democracy
     url: https://protectdemocracy.org/feed/
     tier: Tier 2
+    role: watchdog
     reliability: 0.84
     enabled: true
 
   - name: Democracy Forward
     url: https://democracyforward.org/news/feed/
     tier: Tier 2
+    role: watchdog
     reliability: 0.82
     enabled: true
 
   - name: ACLU
     url: https://www.aclu.org/news/feed
     tier: Tier 2
+    role: watchdog
     reliability: 0.80
     enabled: true
 
-  # Disabled for now because the current endpoints were unstable or failed
+  # Investigative early-warning source
+  - name: The Intercept
+    url: https://theintercept.com/feed/?lang=en
+    tier: Tier 2
+    role: investigative
+    reliability: 0.80
+    enabled: true
+
+  # Democracy-law specialist
+  - name: Democracy Docket
+    url: https://www.democracydocket.com/feed/
+    tier: Tier 2
+    role: watchdog
+    reliability: 0.82
+    enabled: true
+
+  # Disabled for now until stable public feeds/search layer is added
   - name: Associated Press
     url: https://apnews.com/index.rss
     tier: Tier 1
+    role: evidence
     reliability: 0.95
     enabled: false
 
-  - name: Brennan Center
-    url: https://www.brennancenter.org/our-work/analysis-opinion/rss.xml
-    tier: Tier 2
-    reliability: 0.86
+  - name: Reuters
+    url: https://www.reuters.com/world/us/rss
+    tier: Tier 1
+    role: evidence
+    reliability: 0.95
     enabled: false
 
-  - name: States United Democracy Center
-    url: https://statesuniteddemocracy.org/feed/
-    tier: Tier 2
-    reliability: 0.82
+  - name: Washington Post
+    url: https://feeds.washingtonpost.com/rss/politics
+    tier: Tier 1
+    role: evidence
+    reliability: 0.92
+    enabled: false
+
+  - name: New York Times
+    url: https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml
+    tier: Tier 1
+    role: evidence
+    reliability: 0.92
+    enabled: false
+
+  - name: Ground News
+    url: https://ground.news
+    tier: Tier 3
+    role: bias_audit
+    reliability: 0.70
     enabled: false
