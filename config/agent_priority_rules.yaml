@@ -10,37 +10,25 @@ top_priority_sources:
   - washington post
   - new york times
   - propublica
+  - scotusblog
 
 high_priority_sources:
   - lawfare
-  - brennan center
-  - bright line watch
-  - v-dem
-  - international idea
-  - wall street journal
-  - wsj
-  - bloomberg
-  - npr
-  - pbs
-  - politico
-  - time
-  - the guardian
-  - cnn
-  - abc news
-  - nbc news
-  - cbs news
-
-watch_organizations:
-  - aclu
-  - brennan center
+  - campaign legal center
+  - protect democracy
+  - democracy docket
   - democracy forward
+  - aclu
+  - npr
+  - the intercept
+
+watch_sources:
+  - brennan center
   - legal defense fund
   - ldf
   - pacific legal foundation
-  - lawfare
-  - campaign legal center
-  - protect democracy
-  - states united democracy center
+  - states united
+  - ground news
 
 watch_institutions:
   - fbi
@@ -56,6 +44,10 @@ watch_institutions:
   - election board
   - supreme court
   - department of defense
+  - police
+  - federal agents
+  - inspector general
+  - watchdog
 
 watch_targets:
   - journalist
@@ -70,10 +62,29 @@ watch_targets:
   - protester
   - activist
   - civil servant
-  - inspector general
-  - watchdog
+  - immigrant
+  - asylum seeker
+  - voter
 
-urgent_trigger_groups:
+exclude_if_title_or_summary_contains:
+  - opinion
+  - analysis
+  - explainer
+  - what to watch
+  - preview
+  - schedule
+  - calendar
+  - oral argument preview
+  - the stakes of
+  - what it means
+  - could mean
+  - might lead to
+  - may lead to
+  - if this happens
+  - why this matters
+  - interview
+
+trigger_groups:
   court_defiance:
     - court order
     - defied court
@@ -145,6 +156,7 @@ urgent_trigger_groups:
     - rendition
     - without hearing
     - without counsel
+    - held for days
 
   institutional_capture:
     - inspector general fired
@@ -164,3 +176,89 @@ urgent_trigger_groups:
     - conflict of interest
     - ethics violation
     - corruption probe
+
+signal_fallbacks:
+  executive_overreach:
+    - executive order
+    - emergency power
+    - sweeping authority
+    - expanded power
+    - presidential power
+    - unitary executive
+
+event_type_patterns:
+  supreme_court_ruling:
+    - supreme court ruled
+    - supreme court decision
+    - supreme court held
+    - opinion of the court
+
+  court_ruling:
+    - ruled
+    - ruling
+    - held that
+    - granted injunction
+    - denied injunction
+    - order issued
+    - contempt finding
+
+  court_filing:
+    - lawsuit filed
+    - complaint filed
+    - petition filed
+    - motion filed
+    - suit filed
+    - filed in court
+    - sued
+
+  arrest_detention:
+    - arrested
+    - detained
+    - taken into custody
+    - jailed
+    - held for days
+    - imprisoned
+
+  executive_or_agency_action:
+    - executive order
+    - directive
+    - agency action
+    - announced policy
+    - revoked protection
+    - terminated status
+    - removed protection
+
+  media_targeting:
+    - press access revoked
+    - reporter arrested
+    - journalist arrested
+    - newsroom raid
+    - media threatened
+
+  election_action:
+    - certified election
+    - refused to certify
+    - removed from ballot
+    - ballot access denied
+    - voter purge
+    - election board voted
+
+  watchdog_removal:
+    - inspector general fired
+    - watchdog removed
+    - ethics chief removed
+    - oversight official fired
+
+  military_security:
+    - deployed troops
+    - national guard deployed
+    - military deployment
+    - federal agents deployed
+
+  developing:
+    - considering
+    - may file
+    - expected to file
+    - could challenge
+    - may challenge
+    - expected to rule
