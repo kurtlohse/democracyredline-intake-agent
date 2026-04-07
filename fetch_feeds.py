@@ -12,7 +12,6 @@ import feedparser
 import requests
 import yaml
 
-
 ROOT = Path(__file__).resolve().parent
 SOURCES_PATH = ROOT / "config" / "sources.yaml"
 
@@ -22,6 +21,7 @@ class FeedItem:
     published_at: str
     source_name: str
     source_tier: str
+    source_role: str
     source_reliability: float
     title: str
     summary: str
@@ -50,7 +50,6 @@ def normalize_link(link: str) -> str:
 
 
 def parse_published(entry: Any) -> str:
-    # Try feedparser date fields first
     if hasattr(entry, "published_parsed") and entry.published_parsed:
         try:
             dt = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
@@ -65,7 +64,6 @@ def parse_published(entry: Any) -> str:
         except Exception:
             pass
 
-    # Fall back to raw strings
     for attr in ("published", "updated", "pubDate"):
         value = getattr(entry, attr, None)
         if value:
@@ -81,13 +79,11 @@ def parse_published(entry: Any) -> str:
 
 
 def extract_summary(entry: Any) -> str:
-    # Prefer summary-like fields
     for attr in ("summary", "description"):
         value = getattr(entry, attr, None)
         if value:
             return clean_text(value)
 
-    # Some feeds put content into entry.content
     content = getattr(entry, "content", None)
     if content and isinstance(content, list):
         first = content[0] if content else {}
@@ -108,10 +104,11 @@ def fetch_single_feed(source: dict[str, Any], timeout: int = 20) -> list[FeedIte
 
     source_name = clean_text(source.get("name", "Unknown Source"))
     source_tier = clean_text(source.get("tier", "Tier 2"))
+    source_role = clean_text(source.get("role", "evidence"))
     source_reliability = float(source.get("reliability", 0.80))
 
     headers = {
-        "User-Agent": "DemocracyRedlineIntakeBot/1.0 (+https://democracyredline.com)",
+        "User-Agent": "DemocracyRedlineIntakeBot/2.0 (+https://democracyredline.com)",
         "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
     }
 
@@ -139,6 +136,7 @@ def fetch_single_feed(source: dict[str, Any], timeout: int = 20) -> list[FeedIte
                 published_at=published_at,
                 source_name=source_name,
                 source_tier=source_tier,
+                source_role=source_role,
                 source_reliability=source_reliability,
                 title=title,
                 summary=summary,
@@ -151,23 +149,18 @@ def fetch_single_feed(source: dict[str, Any], timeout: int = 20) -> list[FeedIte
 
 def dedupe_items(items: list[FeedItem]) -> list[FeedItem]:
     seen: set[str] = set()
-    deduped: list[FeedItem] = []
-
+    out: list[FeedItem] = []
     for item in items:
         key = stable_hash(normalize_link(item.link))
         if key in seen:
             continue
         seen.add(key)
-        deduped.append(item)
-
-    return deduped
+        out.append(item)
+    return out
 
 
 def sort_items(items: list[FeedItem]) -> list[FeedItem]:
-    def key(item: FeedItem) -> tuple[str, float]:
-        return (item.published_at, item.source_reliability)
-
-    return sorted(items, key=key, reverse=True)
+    return sorted(items, key=lambda x: (x.published_at, x.source_reliability), reverse=True)
 
 
 def fetch_all_feeds() -> list[FeedItem]:
@@ -175,15 +168,11 @@ def fetch_all_feeds() -> list[FeedItem]:
     all_items: list[FeedItem] = []
 
     for source in sources:
-        enabled = bool(source.get("enabled", True))
-        if not enabled:
+        if not bool(source.get("enabled", True)):
             continue
-
         items = fetch_single_feed(source)
         all_items.extend(items)
-
-        # Small pause to be polite and reduce burstiness
-        time.sleep(0.35)
+        time.sleep(0.30)
 
     all_items = dedupe_items(all_items)
     all_items = sort_items(all_items)
