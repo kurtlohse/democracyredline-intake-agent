@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from html import unescape
 from pathlib import Path
 from typing import Any
 import hashlib
+import re
 import time
 
 import feedparser
@@ -78,19 +80,54 @@ def parse_published(entry: Any) -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def strip_html(text: str) -> str:
+    if not text:
+        return ""
+
+    # Convert common block tags to spacing before stripping tags
+    text = re.sub(r"(?i)<\s*br\s*/?\s*>", " ", text)
+    text = re.sub(r"(?i)<\s*/\s*p\s*>", " ", text)
+    text = re.sub(r"(?i)<\s*/\s*div\s*>", " ", text)
+    text = re.sub(r"(?i)<\s*/\s*li\s*>", " ", text)
+
+    # Remove all remaining tags
+    text = re.sub(r"<[^>]+>", " ", text)
+
+    # Decode HTML entities
+    text = unescape(text)
+
+    # Collapse whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
+def trim_summary(text: str, max_len: int = 500) -> str:
+    if len(text) <= max_len:
+        return text
+    trimmed = text[:max_len].rsplit(" ", 1)[0].strip()
+    return trimmed + "..."
+
+
 def extract_summary(entry: Any) -> str:
+    raw = ""
+
     for attr in ("summary", "description"):
         value = getattr(entry, attr, None)
         if value:
-            return clean_text(value)
+            raw = clean_text(value)
+            break
 
-    content = getattr(entry, "content", None)
-    if content and isinstance(content, list):
-        first = content[0] if content else {}
-        if isinstance(first, dict) and first.get("value"):
-            return clean_text(first["value"])
+    if not raw:
+        content = getattr(entry, "content", None)
+        if content and isinstance(content, list):
+            first = content[0] if content else {}
+            if isinstance(first, dict) and first.get("value"):
+                raw = clean_text(first["value"])
 
-    return ""
+    cleaned = strip_html(raw)
+    cleaned = trim_summary(cleaned, max_len=500)
+    return cleaned
 
 
 def stable_hash(value: str) -> str:
