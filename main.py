@@ -44,6 +44,11 @@ HEADERS = [
     "month_assigned",
     "include_in_report",
     "score_impact_candidate",
+    "threat_cluster",
+    "cluster_status",
+    "cluster_escalation_score",
+    "governing_function",
+    "oversight_failure_flag",
     "report_section",
     "duplicate_cluster",
     "final_disposition",
@@ -134,39 +139,12 @@ def compile_phrase_pattern(term: str) -> re.Pattern[str]:
     return re.compile(rf"(?<!\w){joined}(?!\w)", re.IGNORECASE)
 
 
-COMPILED_EXCLUSIONS = [compile_phrase_pattern(t) for t in RULES.get("exclude_if_title_or_summary_contains", [])]
-COMPILED_SOURCE_PRIORITY = {
-    "top_sources": [compile_phrase_pattern(t) for t in RULES.get("top_priority_sources", [])],
-    "high_sources": [compile_phrase_pattern(t) for t in RULES.get("high_priority_sources", [])],
-    "watch_sources": [compile_phrase_pattern(t) for t in RULES.get("watch_sources", [])],
-}
-COMPILED_TRIGGER_GROUPS = {
-    group: [compile_phrase_pattern(t) for t in terms]
-    for group, terms in RULES.get("trigger_groups", {}).items()
-}
-
-
-def matches_any(text: str, patterns: list[re.Pattern[str]]) -> bool:
-    return any(p.search(text) for p in patterns)
-
-
 def matched_terms(text: str, raw_terms: list[str]) -> list[str]:
     hits = []
     for term in raw_terms:
         if compile_phrase_pattern(term).search(text):
             hits.append(term)
     return hits
-
-
-def source_priority(source_name: str, source_role: str) -> str:
-    name = normalize(source_name)
-    if matches_any(name, COMPILED_SOURCE_PRIORITY["top_sources"]):
-        return "Top"
-    if matches_any(name, COMPILED_SOURCE_PRIORITY["high_sources"]):
-        return "High"
-    if source_role in {"watchdog", "investigative"} or matches_any(name, COMPILED_SOURCE_PRIORITY["watch_sources"]):
-        return "Watch"
-    return "Standard"
 
 
 def trigger_group_hits(text: str) -> dict[str, list[str]]:
@@ -188,11 +166,18 @@ def watch_entity_hits(text: str) -> dict[str, list[str]]:
 
 
 def exclusion_hits(text: str) -> list[str]:
-    hits = []
-    for term in RULES.get("exclude_if_title_or_summary_contains", []):
-        if compile_phrase_pattern(term).search(text):
-            hits.append(term)
-    return hits
+    return matched_terms(text, RULES.get("exclude_if_title_or_summary_contains", []))
+
+
+def source_priority(source_name: str, source_role: str) -> str:
+    name = normalize(source_name)
+    if matched_terms(name, RULES.get("top_priority_sources", [])):
+        return "Top"
+    if matched_terms(name, RULES.get("high_priority_sources", [])):
+        return "High"
+    if source_role in {"watchdog", "investigative"} or matched_terms(name, RULES.get("watch_sources", [])):
+        return "Watch"
+    return "Standard"
 
 
 def suggest_primary_signal(text: str) -> str:
@@ -205,6 +190,7 @@ def suggest_primary_signal(text: str) -> str:
         ("Militarization", "coercive_state_power"),
         ("Institutional capture", "institutional_capture"),
         ("Corruption", "corruption"),
+        ("Executive overreach", "oversight_failure"),
     ]
     hits = trigger_group_hits(text)
     for label, group in mapping:
@@ -224,12 +210,13 @@ def suggest_category(text: str, primary_signal: str) -> str:
         ("Political Targeting / Weaponization of Justice", ["retaliatory investigation", "targeting rival", "political prosecution", "weaponized justice", "selective prosecution", "opponent charged", "release file", "fbi file", "doj file"]),
         ("Press Freedom & Information Control", ["journalist", "newsroom", "press access", "media threat", "censorship", "information control", "state media", "reporter arrested"]),
         ("Civil Society & Associational Freedom", ["protest", "assembly", "civil society", "nonprofit restrictions", "campus protest", "union organizing", "speech restrictions"]),
-        ("Institutional Checks & Anti-Corruption", ["inspector general", "ethics violation", "conflict of interest", "corruption", "bribery", "self-dealing", "watchdog removed", "oversight blocked"]),
+        ("Institutional Checks & Anti-Corruption", ["inspector general", "ethics violation", "conflict of interest", "corruption", "bribery", "self-dealing", "watchdog removed", "oversight blocked", "blocked effort", "war powers"]),
         ("Military & Intelligence Neutrality", ["military loyalty", "politicized intelligence", "domestic troop use", "armed forces", "intelligence agency", "chain of command"]),
     ]
     for category, keywords in category_rules:
         if any(compile_phrase_pattern(k).search(text) for k in keywords):
             return category
+
     fallback_map = {
         "Election interference": "Election Integrity & Peaceful Transfer",
         "Court defiance": "Rule of Law & Court Compliance",
@@ -239,7 +226,7 @@ def suggest_category(text: str, primary_signal: str) -> str:
         "Corruption": "Institutional Checks & Anti-Corruption",
         "Militarization": "Coercive State Power & Policing Norms",
         "Institutional capture": "Institutional Checks & Anti-Corruption",
-        "Executive overreach": "Rule of Law & Court Compliance",
+        "Executive overreach": "Institutional Checks & Anti-Corruption",
     }
     return fallback_map.get(primary_signal, "")
 
@@ -271,7 +258,16 @@ def classify_event_type(text: str, exclusion_terms: list[str]) -> str:
 
 
 def classify_event_definiteness(event_type: str) -> str:
-    if event_type in {"Court Ruling", "Supreme Court Ruling", "Arrest / Detention", "Executive Order / Agency Action", "Election Administration Action", "Media Restriction / Journalist Targeting", "Watchdog / Oversight Removal", "Military / Security Deployment"}:
+    if event_type in {
+        "Court Ruling",
+        "Supreme Court Ruling",
+        "Arrest / Detention",
+        "Executive Order / Agency Action",
+        "Election Administration Action",
+        "Media Restriction / Journalist Targeting",
+        "Watchdog / Oversight Removal",
+        "Military / Security Deployment",
+    }:
         return "Confirmed Action"
     if event_type == "Court Filing":
         return "Filed Case"
@@ -316,7 +312,6 @@ def admission_decision(
     category_fit: str,
     event_definiteness: str,
     democratic_consequence: str,
-    exclusion_terms: list[str],
     trigger_hits: dict[str, list[str]],
 ) -> str:
     if event_definiteness == "Commentary / Preview":
@@ -332,7 +327,141 @@ def admission_decision(
     return "Reject"
 
 
-def compute_escalation_score(
+def determine_governing_function(
+    category: str,
+    trigger_hits: dict[str, list[str]],
+    oversight_failure_flag: str,
+) -> str:
+    functions = set()
+
+    if category == "Institutional Checks & Anti-Corruption" or oversight_failure_flag == "Yes":
+        functions.add("Legislative Oversight")
+    if category == "Rule of Law & Court Compliance":
+        functions.add("Judicial Enforcement")
+    if category == "Habeas Corpus & Due Process":
+        functions.add("Civil Liberties Protection")
+    if category == "Election Integrity & Peaceful Transfer":
+        functions.add("Election Integrity")
+    if category == "Press Freedom & Information Control":
+        functions.add("Press Independence")
+    if category == "Coercive State Power & Policing Norms":
+        functions.add("Lawful Force")
+    if category == "Political Targeting / Weaponization of Justice":
+        functions.add("Executive Constraint")
+    if category == "Military & Intelligence Neutrality":
+        functions.add("Lawful Force")
+
+    if "oversight_failure" in trigger_hits:
+        functions.add("Legislative Oversight")
+    if "court_defiance" in trigger_hits:
+        functions.add("Judicial Enforcement")
+    if "election_interference" in trigger_hits:
+        functions.add("Election Integrity")
+    if "press_intimidation" in trigger_hits:
+        functions.add("Press Independence")
+    if "due_process" in trigger_hits:
+        functions.add("Civil Liberties Protection")
+    if "coercive_state_power" in trigger_hits:
+        functions.add("Lawful Force")
+
+    if not functions:
+        return "Multiple" if len(trigger_hits) >= 2 else "Executive Constraint"
+    if len(functions) == 1:
+        return next(iter(functions))
+    return "Multiple"
+
+
+def determine_oversight_failure_flag(trigger_hits: dict[str, list[str]]) -> str:
+    return "Yes" if "oversight_failure" in trigger_hits else "No"
+
+
+def determine_threat_cluster(
+    text: str,
+    primary_signal: str,
+    category: str,
+    trigger_hits: dict[str, list[str]],
+    oversight_failure_flag: str,
+) -> str:
+    if "weaponized_justice" in trigger_hits:
+        return "DOJ_TARGETING_OPPONENTS_2026"
+    if "court_defiance" in trigger_hits and "due_process" in trigger_hits:
+        return "COURT_DEFIANCE_DUE_PROCESS_2026"
+    if "election_interference" in trigger_hits:
+        return "ELECTION_ADMIN_INTEGRITY_2026"
+    if oversight_failure_flag == "Yes" and ("coercive_state_power" in trigger_hits or "war powers" in text):
+        return "IRAN_WAR_POWERS_2026"
+    if "press_intimidation" in trigger_hits:
+        return "PRESS_INTIMIDATION_2026"
+    if "institutional_capture" in trigger_hits:
+        return "WATCHDOG_CAPTURE_2026"
+    if primary_signal == "Executive overreach" and category == "Institutional Checks & Anti-Corruption":
+        return "EXECUTIVE_OVERSIGHT_EROSION_2026"
+    return ""
+
+
+def compute_cluster_escalation_score(
+    source_role: str,
+    source_tier: str,
+    confidence: str,
+    event_type: str,
+    oversight_failure_flag: str,
+    trigger_hits: dict[str, list[str]],
+) -> int:
+    score = 0
+
+    if event_type in {"Court Ruling", "Supreme Court Ruling", "Arrest / Detention", "Executive Order / Agency Action", "Military / Security Deployment"}:
+        score += 3
+    elif event_type == "Court Filing":
+        score += 2
+    elif event_type == "Developing / Unconfirmed":
+        score += 1
+
+    if source_role == "evidence":
+        score += 2
+    elif source_role in {"watchdog", "investigative"}:
+        score += 1
+
+    if source_tier == "Tier 1":
+        score += 1
+
+    if confidence == "High":
+        score += 2
+    elif confidence == "Medium":
+        score += 1
+
+    if oversight_failure_flag == "Yes":
+        score += 3
+
+    if len(trigger_hits) >= 3:
+        score += 3
+    elif len(trigger_hits) == 2:
+        score += 2
+    elif len(trigger_hits) == 1:
+        score += 1
+
+    if "weaponized_justice" in trigger_hits:
+        score += 2
+    if "court_defiance" in trigger_hits:
+        score += 2
+    if "election_interference" in trigger_hits:
+        score += 2
+
+    return score
+
+
+def determine_cluster_status(cluster_score: int, threat_cluster: str) -> str:
+    if not threat_cluster:
+        return ""
+    if cluster_score >= 10:
+        return "Redline Watch"
+    if cluster_score >= 7:
+        return "Very Serious"
+    if cluster_score >= 4:
+        return "Serious"
+    return "Emerging"
+
+
+def compute_row_escalation_score(
     source_tier: str,
     confidence: str,
     src_priority: str,
@@ -407,7 +536,7 @@ def suggest_editor_priority(
     score_impact_candidate: str,
     trigger_hits: dict[str, list[str]],
 ) -> str:
-    strong_trigger_groups = {"weaponized_justice", "court_defiance", "election_interference"}
+    strong_trigger_groups = {"weaponized_justice", "court_defiance", "election_interference", "oversight_failure"}
     strong_count = sum(1 for k in trigger_hits if k in strong_trigger_groups)
 
     if score_impact_candidate == "Unlikely":
@@ -465,6 +594,8 @@ def auto_notes(
     trigger_hits: dict[str, list[str]],
     entity_hits: dict[str, list[str]],
     escalation_score: int,
+    threat_cluster: str,
+    cluster_status: str,
 ) -> str:
     parts = [
         f"source={src_priority}",
@@ -474,6 +605,10 @@ def auto_notes(
         f"consequence={democratic_consequence}",
         f"score={escalation_score}",
     ]
+    if threat_cluster:
+        parts.append(f"cluster={threat_cluster}")
+    if cluster_status:
+        parts.append(f"cluster_status={cluster_status}")
     if trigger_hits:
         parts.append("triggers=" + ", ".join(list(trigger_hits.keys())[:3]))
     wh = entity_hits.get("institutions", []) + entity_hits.get("targets", [])
@@ -508,10 +643,23 @@ def build_row(item: Any) -> dict[str, str]:
         category_fit=category_fit,
         event_definiteness=event_definiteness,
         democratic_consequence=democratic_consequence,
-        exclusion_terms=exclusion_terms,
         trigger_hits=trigger_hits,
     )
-    escalation_score = compute_escalation_score(
+
+    oversight_failure_flag = determine_oversight_failure_flag(trigger_hits)
+    governing_function = determine_governing_function(category, trigger_hits, oversight_failure_flag)
+    threat_cluster = determine_threat_cluster(text, primary_signal, category, trigger_hits, oversight_failure_flag)
+    cluster_score = compute_cluster_escalation_score(
+        source_role=source_role,
+        source_tier=source_tier,
+        confidence=confidence,
+        event_type=event_type,
+        oversight_failure_flag=oversight_failure_flag,
+        trigger_hits=trigger_hits,
+    )
+    cluster_status = determine_cluster_status(cluster_score, threat_cluster)
+
+    row_score = compute_row_escalation_score(
         source_tier=source_tier,
         confidence=confidence,
         src_priority=src_priority,
@@ -520,16 +668,18 @@ def build_row(item: Any) -> dict[str, str]:
         entity_hits=entity_hits,
         event_definiteness=event_definiteness,
     )
+
     score_impact_candidate = suggest_score_impact_candidate(
-        escalation_score=escalation_score,
+        escalation_score=row_score,
         admission=admission,
         primary_signal=primary_signal,
     )
     editor_priority = suggest_editor_priority(
-        escalation_score=escalation_score,
+        escalation_score=row_score,
         score_impact_candidate=score_impact_candidate,
         trigger_hits=trigger_hits,
     )
+
     include_in_report = "Maybe" if admission != "Reject" else "No"
     needs_manual_review = suggest_needs_manual_review(
         admission=admission,
@@ -565,6 +715,11 @@ def build_row(item: Any) -> dict[str, str]:
         "month_assigned": month_from_published(published_at),
         "include_in_report": include_in_report,
         "score_impact_candidate": score_impact_candidate,
+        "threat_cluster": threat_cluster,
+        "cluster_status": cluster_status,
+        "cluster_escalation_score": str(cluster_score) if threat_cluster else "",
+        "governing_function": governing_function,
+        "oversight_failure_flag": oversight_failure_flag,
         "report_section": "",
         "duplicate_cluster": "",
         "final_disposition": "",
@@ -578,7 +733,9 @@ def build_row(item: Any) -> dict[str, str]:
             democratic_consequence=democratic_consequence,
             trigger_hits=trigger_hits,
             entity_hits=entity_hits,
-            escalation_score=escalation_score,
+            escalation_score=row_score,
+            threat_cluster=threat_cluster,
+            cluster_status=cluster_status,
         ),
     }
     row["duplicate_cluster"] = make_duplicate_cluster_seed(row)
