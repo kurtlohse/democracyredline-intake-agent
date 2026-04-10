@@ -21,6 +21,7 @@ high_priority_sources:
   - aclu
   - npr
   - the intercept
+  - nbc news
 
 watch_sources:
   - brennan center
@@ -48,6 +49,10 @@ watch_institutions:
   - federal agents
   - inspector general
   - watchdog
+  - congress
+  - house republicans
+  - senate republicans
+  - war powers
 
 watch_targets:
   - journalist
@@ -65,6 +70,7 @@ watch_targets:
   - immigrant
   - asylum seeker
   - voter
+  - civilian
 
 exclude_if_title_or_summary_contains:
   - opinion
@@ -146,6 +152,9 @@ trigger_groups:
     - riot control
     - paramilitary
     - surveillance powers
+    - war on iran
+    - bomb bridges
+    - power plants
 
   due_process:
     - habeas
@@ -177,6 +186,22 @@ trigger_groups:
     - ethics violation
     - corruption probe
 
+  oversight_failure:
+    - blocked effort
+    - blocked vote
+    - refused vote
+    - delayed vote
+    - adjourned before vote
+    - ignored war powers
+    - no authorization
+    - oversight blocked
+    - congress sidelined
+    - failed to constrain
+    - prevented debate
+    - war powers resolution
+    - blocked effort to halt
+    - house republicans blocked
+
 signal_fallbacks:
   executive_overreach:
     - executive order
@@ -185,6 +210,7 @@ signal_fallbacks:
     - expanded power
     - presidential power
     - unitary executive
+    - a whole civilization will die tonight
 
 event_type_patterns:
   supreme_court_ruling:
@@ -227,6 +253,8 @@ event_type_patterns:
     - revoked protection
     - terminated status
     - removed protection
+    - threatened iran
+    - civilization will die
 
   media_targeting:
     - press access revoked
@@ -254,6 +282,9 @@ event_type_patterns:
     - national guard deployed
     - military deployment
     - federal agents deployed
+    - attacked iran
+    - struck iran
+    - bombed iran
 
   developing:
     - considering
