@@ -4,7 +4,6 @@ top_priority_sources:
   - reuters
   - associated press
   - ap news
-  - agence france-presse
   - afp
   - bbc
   - bbc news
@@ -20,11 +19,11 @@ high_priority_sources:
   - aclu
   - npr
   - the intercept
+  - freedom of the press foundation
 
 watch_sources:
   - brennan center
   - states united
-  - freedom of the press foundation
   - legal defense fund
   - ldf
   - ground news
@@ -41,6 +40,7 @@ watch_institutions:
   - irs
   - federal election commission
   - election board
+  - board of elections
   - secretary of state
   - supreme court
   - department of defense
@@ -50,8 +50,6 @@ watch_institutions:
   - house
   - senate
   - war powers
-  - voting machine
-  - board of elections
 
 watch_targets:
   - journalist
@@ -73,67 +71,62 @@ watch_targets:
 
 exclude_if_title_or_summary_contains:
   - opinion
-  - analysis
   - explainer
   - what to watch
   - preview
   - schedule
   - calendar
   - oral argument preview
-  - interview
   - podcast
   - transcript
   - newsletter
   - roundup
-  - weekly update
   - live blog
   - live updates
   - recap
-  - how to think about
-  - what this means
-  - why this matters
-  - what it means for
-  - key takeaways
 
 trigger_groups:
   court_defiance:
     - defied court order
     - ignored court order
-    - refused to comply with court order
+    - refused to comply
     - violated court order
     - violated injunction
     - contempt finding
-    - court said unlawful
-    - court blocked
     - injunction granted
+    - injunction denied
     - stay denied
     - emergency stay denied
+    - court blocked
+    - court said unlawful
+    - judge ordered
+    - order issued
 
   election_interference:
     - refused to certify
     - ballot access denied
     - removed from ballot
     - voter purge
-    - election official threatened
-    - election official removed
-    - vote count halted
+    - voter roll purge
     - certification delayed
+    - vote count halted
     - fake electors
     - elector scheme
-    - voting machine seized
-    - voter roll purge
-    - board of elections voted
+    - election official threatened
+    - election official removed
     - election board voted
+    - board of elections voted
+    - voting machine seized
 
   weaponized_justice:
     - retaliatory investigation
     - politically motivated charges
     - prosecution of opponent
-    - grand jury against opponent
-    - justice department targeted
     - investigate political opponent
     - targeted political rival
-    - selective prosecution of opponent
+    - selective prosecution
+    - justice department targeted
+    - grand jury against opponent
 
   press_intimidation:
     - journalist arrested
@@ -143,9 +136,9 @@ trigger_groups:
     - newsroom raid
     - subpoenaed reporter
     - press access revoked
-    - media threatened
     - journalist barred
     - reporter barred
+    - media threatened
 
   coercive_state_power:
     - national guard deployed
@@ -168,9 +161,9 @@ trigger_groups:
     - deported without hearing
     - rendition
     - without counsel
-    - held for days without charge
     - denied hearing
     - indefinite detention
+    - held for days without charge
 
   institutional_capture:
     - inspector general fired
@@ -199,20 +192,20 @@ trigger_groups:
     - refused vote
     - delayed vote
     - adjourned before vote
-    - no authorization
     - oversight blocked
     - congress sidelined
-    - failed to constrain
     - prevented debate
-    - war powers resolution blocked
-    - war powers ignored
     - subpoena defied
     - refused testimony
     - blocked oversight hearing
+    - no authorization
+    - war powers ignored
+    - war powers resolution blocked
 
 signal_fallbacks:
   executive_overreach:
     - executive order signed
+    - directive issued
     - emergency power invoked
     - sweeping authority claimed
     - expanded presidential power
