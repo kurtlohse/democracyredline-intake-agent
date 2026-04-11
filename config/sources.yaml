@@ -21,7 +21,21 @@ sources:
     reliability: 0.88
     enabled: true
 
-  # Broad context source, still useful but should be filtered by admission logic
+  - name: Reuters
+    url: https://www.reuters.com/world/us/rss
+    tier: Tier 1
+    role: evidence
+    reliability: 0.95
+    enabled: true
+
+  - name: Associated Press
+    url: https://apnews.com/index.rss
+    tier: Tier 1
+    role: evidence
+    reliability: 0.95
+    enabled: true
+
+  # Broad context source
   - name: NPR Politics
     url: https://feeds.npr.org/1014/rss.xml
     tier: Tier 2
@@ -65,7 +79,7 @@ sources:
     reliability: 0.80
     enabled: true
 
-  # Investigative early-warning source
+  # Investigative early-warning
   - name: The Intercept
     url: https://theintercept.com/feed/?lang=en
     tier: Tier 2
@@ -73,26 +87,12 @@ sources:
     reliability: 0.80
     enabled: true
 
-  # Disabled for now until stable public feeds/search layer is added or feed access improves
+  # Disabled for now
   - name: Lawfare Democracy & Elections
     url: https://www.lawfaremedia.org/rss.xml
     tier: Tier 2
     role: watchdog
     reliability: 0.87
-    enabled: false
-
-  - name: Associated Press
-    url: https://apnews.com/index.rss
-    tier: Tier 1
-    role: evidence
-    reliability: 0.95
-    enabled: false
-
-  - name: Reuters
-    url: https://www.reuters.com/world/us/rss
-    tier: Tier 1
-    role: evidence
-    reliability: 0.95
     enabled: false
 
   - name: Washington Post
