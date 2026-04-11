@@ -797,6 +797,11 @@ def main() -> None:
     write_csv(rows)
     print(f"Wrote {len(rows)} rows to {OUTPUT_CSV}")
 
+print(f"Rows after classification/dedupe: {len(rows)}")
+for row in rows[:20]:
+    print(f"{row.get('published_at', '')} | {row.get('source_name', '')} | {row.get('title', '')}")
+    print(f"LINK: {row.get('link', '')}")
+    
     try:
         new_count = append_rows_to_sheet(rows, worksheet_name="Intake", headers=HEADERS)
         if new_count == 0:
