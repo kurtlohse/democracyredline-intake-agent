@@ -1,45 +1,63 @@
-feeds:
+sources:
   - name: Reuters World News
     url: https://feeds.reuters.com/Reuters/worldNews
-    source_tier: Tier 2
+    tier: Tier 2
+    role: evidence
     reliability: 0.95
+    enabled: true
 
   - name: Associated Press Politics
     url: https://apnews.com/hub/politics/rss
-    source_tier: Tier 2
+    tier: Tier 2
+    role: evidence
     reliability: 0.95
+    enabled: true
 
   - name: NPR Politics
     url: https://feeds.npr.org/1014/rss.xml
-    source_tier: Tier 2
+    tier: Tier 2
+    role: evidence
     reliability: 0.88
+    enabled: true
 
   - name: ProPublica
     url: https://www.propublica.org/feeds/propublica/main
-    source_tier: Tier 2
+    tier: Tier 2
+    role: investigative
     reliability: 0.90
+    enabled: true
 
   - name: Brennan Center
     url: https://www.brennancenter.org/rss.xml
-    source_tier: Tier 2
+    tier: Tier 2
+    role: watchdog
     reliability: 0.90
+    enabled: true
 
   - name: Freedom of the Press Foundation
     url: https://freedom.press/feed/
-    source_tier: Tier 2
+    tier: Tier 2
+    role: watchdog
     reliability: 0.86
+    enabled: true
 
   - name: Lawfare
     url: https://www.lawfaremedia.org/rss.xml
-    source_tier: Tier 2
+    tier: Tier 2
+    role: watchdog
     reliability: 0.86
+    enabled: false
 
   - name: SCOTUSblog
     url: https://www.scotusblog.com/feed/
-    source_tier: Tier 2
+    tier: Tier 2
+    role: evidence
     reliability: 0.85
+    enabled: true
 
   - name: DOJ Press Releases
     url: https://www.justice.gov/feeds/press-release.xml
-    source_tier: Tier 1
+    tier: Tier 1
+    role: evidence
     reliability: 0.93
+    enabled: true
