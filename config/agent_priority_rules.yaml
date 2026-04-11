@@ -13,7 +13,6 @@ top_priority_sources:
   - scotusblog
 
 high_priority_sources:
-  - lawfare
   - campaign legal center
   - protect democracy
   - democracy docket
@@ -27,7 +26,6 @@ watch_sources:
   - brennan center
   - legal defense fund
   - ldf
-  - pacific legal foundation
   - states united
   - ground news
 
@@ -45,13 +43,11 @@ watch_institutions:
   - election board
   - supreme court
   - department of defense
-  - police
   - federal agents
   - inspector general
-  - watchdog
   - congress
-  - house republicans
-  - senate republicans
+  - house
+  - senate
   - war powers
 
 watch_targets:
@@ -61,9 +57,7 @@ watch_targets:
   - election official
   - candidate
   - lawmaker
-  - opponent
-  - governor
-  - mayor
+  - political opponent
   - protester
   - activist
   - civil servant
@@ -71,6 +65,7 @@ watch_targets:
   - asylum seeker
   - voter
   - civilian
+  - whistleblower
 
 exclude_if_title_or_summary_contains:
   - opinion
@@ -81,13 +76,6 @@ exclude_if_title_or_summary_contains:
   - schedule
   - calendar
   - oral argument preview
-  - the stakes of
-  - what it means
-  - could mean
-  - might lead to
-  - may lead to
-  - if this happens
-  - why this matters
   - interview
 
 trigger_groups:
@@ -102,6 +90,8 @@ trigger_groups:
     - refused to comply
     - judicial order
     - violated order
+    - blocked by court
+    - court said unlawful
 
   election_interference:
     - election certification
@@ -114,22 +104,20 @@ trigger_groups:
     - election official
     - vote count
     - voter roll
-    - gerrymander
     - redistricting
+    - election board voted
+    - removed from ballot
 
   weaponized_justice:
-    - release file
     - investigate opponent
     - retaliatory investigation
     - political prosecution
     - selective prosecution
     - targeting rival
-    - fbi file
-    - doj file
-    - cease-and-desist
-    - smear
     - grand jury against opponent
     - prosecution of opponent
+    - politically motivated charges
+    - justice department targeted
 
   press_intimidation:
     - journalist arrested
@@ -137,9 +125,9 @@ trigger_groups:
     - newsroom raid
     - subpoenaed reporter
     - press access revoked
-    - media threat
-    - press freedom
     - detained journalist
+    - media threatened
+    - reporter detained
 
   coercive_state_power:
     - national guard
@@ -152,9 +140,7 @@ trigger_groups:
     - riot control
     - paramilitary
     - surveillance powers
-    - war on iran
-    - bomb bridges
-    - power plants
+    - troops deployed
 
   due_process:
     - habeas
@@ -166,6 +152,7 @@ trigger_groups:
     - without hearing
     - without counsel
     - held for days
+    - denied hearing
 
   institutional_capture:
     - inspector general fired
@@ -173,9 +160,9 @@ trigger_groups:
     - civil service purge
     - installed loyalist
     - stacking agency
-    - independent agency
-    - purge
     - watchdog ousted
+    - ethics chief removed
+    - oversight official fired
 
   corruption:
     - bribery
@@ -187,7 +174,6 @@ trigger_groups:
     - corruption probe
 
   oversight_failure:
-    - blocked effort
     - blocked vote
     - refused vote
     - delayed vote
@@ -200,7 +186,6 @@ trigger_groups:
     - prevented debate
     - war powers resolution
     - blocked effort to halt
-    - house republicans blocked
 
 signal_fallbacks:
   executive_overreach:
@@ -210,7 +195,6 @@ signal_fallbacks:
     - expanded power
     - presidential power
     - unitary executive
-    - a whole civilization will die tonight
 
 event_type_patterns:
   supreme_court_ruling:
@@ -220,13 +204,14 @@ event_type_patterns:
     - opinion of the court
 
   court_ruling:
-    - ruled
-    - ruling
-    - held that
     - granted injunction
     - denied injunction
     - order issued
     - contempt finding
+    - appeals court ruled
+    - federal judge ruled
+    - court blocked
+    - court allowed
 
   court_filing:
     - lawsuit filed
@@ -253,8 +238,7 @@ event_type_patterns:
     - revoked protection
     - terminated status
     - removed protection
-    - threatened iran
-    - civilization will die
+    - signed order
 
   media_targeting:
     - press access revoked
@@ -282,9 +266,6 @@ event_type_patterns:
     - national guard deployed
     - military deployment
     - federal agents deployed
-    - attacked iran
-    - struck iran
-    - bombed iran
 
   developing:
     - considering
