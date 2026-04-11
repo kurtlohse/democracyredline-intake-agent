@@ -207,11 +207,11 @@ def suggest_category(text: str, primary_signal: str) -> str:
         ("Election Integrity & Peaceful Transfer", ["election", "ballot", "vote count", "certification", "elector", "voter roll", "peaceful transfer"]),
         ("Rule of Law & Court Compliance", ["court order", "injunction", "ignored ruling", "defied court", "judicial order", "supreme court", "contempt"]),
         ("Habeas Corpus & Due Process", ["habeas", "due process", "detention", "deportation", "rendition", "indefinite detention"]),
-        ("Coercive State Power & Policing Norms", ["police", "federal agents", "riot control", "military deployment", "national guard", "insurrection act", "surveillance", "raids"]),
-        ("Political Targeting / Weaponization of Justice", ["retaliatory investigation", "targeting rival", "political prosecution", "weaponized justice", "selective prosecution", "opponent charged", "release file", "fbi file", "doj file"]),
-        ("Press Freedom & Information Control", ["journalist", "newsroom", "press access", "media threat", "censorship", "information control", "state media", "reporter arrested"]),
-        ("Civil Society & Associational Freedom", ["protest", "assembly", "civil society", "nonprofit restrictions", "campus protest", "union organizing", "speech restrictions"]),
-        ("Institutional Checks & Anti-Corruption", ["inspector general", "ethics violation", "conflict of interest", "corruption", "bribery", "self-dealing", "watchdog removed", "oversight blocked", "blocked effort", "war powers"]),
+        ("Coercive State Power & Policing Norms", ["federal agents", "riot control", "military deployment", "national guard", "insurrection act", "surveillance", "raids"]),
+        ("Political Targeting / Weaponization of Justice", ["retaliatory investigation", "targeting rival", "political prosecution", "weaponized justice", "selective prosecution", "fbi file", "doj file"]),
+        ("Press Freedom & Information Control", ["journalist", "newsroom", "press access", "media threat", "reporter arrested", "journalist barred"]),
+        ("Civil Society & Associational Freedom", ["protest", "assembly", "civil society", "speech restrictions"]),
+        ("Institutional Checks & Anti-Corruption", ["inspector general", "ethics violation", "conflict of interest", "corruption", "bribery", "self-dealing", "watchdog removed", "oversight blocked", "war powers", "subpoena defied"]),
         ("Military & Intelligence Neutrality", ["military loyalty", "politicized intelligence", "domestic troop use", "armed forces", "intelligence agency", "chain of command"]),
     ]
     for category, keywords in category_rules:
@@ -328,17 +328,9 @@ def admission_decision(
     if (
         source_role in {"watchdog", "investigative"}
         and category_fit == "Direct"
-        and event_definiteness == "Confirmed Action"
+        and event_definiteness in {"Confirmed Action", "Filed Case"}
         and democratic_consequence in {"Immediate", "Material"}
         and len(trigger_hits) >= 1
-    ):
-        return "Watchlist"
-
-    if (
-        source_role in {"watchdog", "investigative"}
-        and category_fit == "Direct"
-        and event_definiteness == "Filed Case"
-        and len(trigger_hits) >= 2
     ):
         return "Watchlist"
 
@@ -346,6 +338,14 @@ def admission_decision(
         category_fit == "Direct"
         and event_definiteness == "Developing / Unconfirmed"
         and democratic_consequence == "Possible"
+        and len(trigger_hits) >= 2
+    ):
+        return "Watchlist"
+
+    if (
+        source_role in {"watchdog", "investigative"}
+        and category_fit == "Direct"
+        and event_definiteness == "Developing / Unconfirmed"
         and len(trigger_hits) >= 2
     ):
         return "Watchlist"
