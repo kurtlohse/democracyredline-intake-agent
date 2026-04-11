@@ -84,21 +84,14 @@ def strip_html(text: str) -> str:
     if not text:
         return ""
 
-    # Convert common block tags to spacing before stripping tags
     text = re.sub(r"(?i)<\s*br\s*/?\s*>", " ", text)
     text = re.sub(r"(?i)<\s*/\s*p\s*>", " ", text)
     text = re.sub(r"(?i)<\s*/\s*div\s*>", " ", text)
     text = re.sub(r"(?i)<\s*/\s*li\s*>", " ", text)
 
-    # Remove all remaining tags
     text = re.sub(r"<[^>]+>", " ", text)
-
-    # Decode HTML entities
     text = unescape(text)
-
-    # Collapse whitespace
     text = re.sub(r"\s+", " ", text).strip()
-
     return text
 
 
