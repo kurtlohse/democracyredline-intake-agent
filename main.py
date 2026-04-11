@@ -204,15 +204,42 @@ def suggest_primary_signal(text: str) -> str:
 
 def suggest_category(text: str, primary_signal: str) -> str:
     category_rules: list[tuple[str, list[str]]] = [
-        ("Election Integrity & Peaceful Transfer", ["election", "ballot", "vote count", "certification", "elector", "voter roll", "peaceful transfer"]),
-        ("Rule of Law & Court Compliance", ["court order", "injunction", "ignored ruling", "defied court", "judicial order", "supreme court", "contempt"]),
-        ("Habeas Corpus & Due Process", ["habeas", "due process", "detention", "deportation", "rendition", "indefinite detention"]),
-        ("Coercive State Power & Policing Norms", ["federal agents", "riot control", "military deployment", "national guard", "insurrection act", "surveillance", "raids"]),
-        ("Political Targeting / Weaponization of Justice", ["retaliatory investigation", "targeting rival", "political prosecution", "weaponized justice", "selective prosecution", "fbi file", "doj file"]),
-        ("Press Freedom & Information Control", ["journalist", "newsroom", "press access", "media threat", "reporter arrested", "journalist barred"]),
-        ("Civil Society & Associational Freedom", ["protest", "assembly", "civil society", "speech restrictions"]),
-        ("Institutional Checks & Anti-Corruption", ["inspector general", "ethics violation", "conflict of interest", "corruption", "bribery", "self-dealing", "watchdog removed", "oversight blocked", "war powers", "subpoena defied"]),
-        ("Military & Intelligence Neutrality", ["military loyalty", "politicized intelligence", "domestic troop use", "armed forces", "intelligence agency", "chain of command"]),
+        (
+            "Election Integrity & Peaceful Transfer",
+            ["election", "ballot", "vote count", "certification", "elector", "voter roll", "peaceful transfer"],
+        ),
+        (
+            "Rule of Law & Court Compliance",
+            ["court order", "injunction", "ignored ruling", "defied court", "judicial order", "supreme court", "contempt"],
+        ),
+        (
+            "Habeas Corpus & Due Process",
+            ["habeas", "due process", "detention", "deportation", "rendition", "indefinite detention"],
+        ),
+        (
+            "Coercive State Power & Policing Norms",
+            ["federal agents", "riot control", "military deployment", "national guard", "insurrection act", "surveillance", "raids"],
+        ),
+        (
+            "Political Targeting / Weaponization of Justice",
+            ["retaliatory investigation", "targeting rival", "political prosecution", "weaponized justice", "selective prosecution", "fbi file", "doj file"],
+        ),
+        (
+            "Press Freedom & Information Control",
+            ["journalist", "newsroom", "press access", "media threat", "reporter arrested", "journalist barred"],
+        ),
+        (
+            "Civil Society & Associational Freedom",
+            ["protest", "assembly", "civil society", "speech restrictions"],
+        ),
+        (
+            "Institutional Checks & Anti-Corruption",
+            ["inspector general", "ethics violation", "conflict of interest", "corruption", "bribery", "self-dealing", "watchdog removed", "oversight blocked", "war powers", "subpoena defied"],
+        ),
+        (
+            "Military & Intelligence Neutrality",
+            ["military loyalty", "politicized intelligence", "domestic troop use", "armed forces", "intelligence agency", "chain of command"],
+        ),
     ]
     for category, keywords in category_rules:
         if any(compile_phrase_pattern(k).search(text) for k in keywords):
@@ -280,14 +307,17 @@ def classify_event_definiteness(event_type: str) -> str:
 
 
 def classify_category_fit(category: str, primary_signal: str, trigger_hits: dict[str, list[str]]) -> str:
-    if category and (primary_signal or len(trigger_hits) >= 1):
+    trigger_count = len(trigger_hits)
+    if category and (primary_signal or trigger_count >= 1):
         return "Direct"
-    if category or primary_signal:
+    if category or primary_signal or trigger_count >= 1:
         return "Partial"
     return "Weak"
 
 
 def classify_democratic_consequence(event_type: str, category_fit: str, trigger_hits: dict[str, list[str]]) -> str:
+    trigger_count = len(trigger_hits)
+
     if category_fit == "Direct" and event_type in {
         "Court Ruling",
         "Supreme Court Ruling",
@@ -299,13 +329,34 @@ def classify_democratic_consequence(event_type: str, category_fit: str, trigger_
         "Military / Security Deployment",
     }:
         return "Immediate"
+
     if category_fit == "Direct" and event_type == "Court Filing":
         return "Material"
-    if category_fit in {"Direct", "Partial"} and event_type == "Developing / Unconfirmed":
+
+    if category_fit == "Direct" and event_type == "Developing / Unconfirmed" and trigger_count >= 2:
         return "Possible"
-    if category_fit == "Partial" and trigger_hits:
+
+    if category_fit == "Partial" and trigger_count >= 2:
         return "Possible"
+
+    if category_fit == "Direct" and trigger_count >= 1:
+        return "Possible"
+
     return "Remote"
+
+
+def strong_trigger_count(trigger_hits: dict[str, list[str]]) -> int:
+    strong_trigger_groups = {
+        "weaponized_justice",
+        "court_defiance",
+        "election_interference",
+        "oversight_failure",
+        "due_process",
+        "press_intimidation",
+        "coercive_state_power",
+        "institutional_capture",
+    }
+    return sum(1 for k in trigger_hits if k in strong_trigger_groups)
 
 
 def admission_decision(
@@ -314,7 +365,13 @@ def admission_decision(
     event_definiteness: str,
     democratic_consequence: str,
     trigger_hits: dict[str, list[str]],
+    entity_hits: dict[str, list[str]],
+    primary_signal: str,
 ) -> str:
+    trigger_count = len(trigger_hits)
+    strong_count = strong_trigger_count(trigger_hits)
+    entity_count = len(entity_hits.get("institutions", [])) + len(entity_hits.get("targets", []))
+
     if event_definiteness == "Commentary / Preview":
         return "Reject"
 
@@ -329,8 +386,7 @@ def admission_decision(
         source_role in {"watchdog", "investigative"}
         and category_fit == "Direct"
         and event_definiteness in {"Confirmed Action", "Filed Case"}
-        and democratic_consequence in {"Immediate", "Material"}
-        and len(trigger_hits) >= 1
+        and (trigger_count >= 1 or strong_count >= 1 or (primary_signal and entity_count >= 1))
     ):
         return "Watchlist"
 
@@ -338,15 +394,16 @@ def admission_decision(
         category_fit == "Direct"
         and event_definiteness == "Developing / Unconfirmed"
         and democratic_consequence == "Possible"
-        and len(trigger_hits) >= 2
+        and (trigger_count >= 2 or strong_count >= 1)
     ):
         return "Watchlist"
 
     if (
         source_role in {"watchdog", "investigative"}
-        and category_fit == "Direct"
-        and event_definiteness == "Developing / Unconfirmed"
-        and len(trigger_hits) >= 2
+        and category_fit in {"Direct", "Partial"}
+        and event_definiteness in {"Confirmed Action", "Filed Case"}
+        and primary_signal
+        and (trigger_count >= 1 or entity_count >= 2)
     ):
         return "Watchlist"
 
@@ -560,8 +617,7 @@ def suggest_editor_priority(
     score_impact_candidate: str,
     trigger_hits: dict[str, list[str]],
 ) -> str:
-    strong_trigger_groups = {"weaponized_justice", "court_defiance", "election_interference", "oversight_failure"}
-    strong_count = sum(1 for k in trigger_hits if k in strong_trigger_groups)
+    strong_count = strong_trigger_count(trigger_hits)
 
     if score_impact_candidate == "Unlikely":
         return "Medium" if strong_count >= 2 else "Low"
@@ -666,6 +722,8 @@ def build_row(item: Any) -> dict[str, str]:
         event_definiteness=event_definiteness,
         democratic_consequence=democratic_consequence,
         trigger_hits=trigger_hits,
+        entity_hits=entity_hits,
+        primary_signal=primary_signal,
     )
 
     oversight_failure_flag = determine_oversight_failure_flag(trigger_hits)
