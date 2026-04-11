@@ -35,10 +35,7 @@ def ensure_header(
 ) -> None:
     existing_header = worksheet.row_values(1)
     if existing_header != list(headers):
-        if not existing_header:
-            worksheet.update("A1", [list(headers)])
-        else:
-            worksheet.update("A1", [list(headers)])
+        worksheet.update("A1", [list(headers)])
 
 
 def get_existing_links(worksheet: gspread.Worksheet, headers: Sequence[str]) -> set[str]:
