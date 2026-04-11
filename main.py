@@ -326,18 +326,27 @@ def admission_decision(
         return "Main Intake"
 
     if (
-        category_fit == "Direct"
-        and event_definiteness == "Developing / Unconfirmed"
-        and democratic_consequence == "Possible"
-        and len(trigger_hits) >= 2
+        source_role in {"watchdog", "investigative"}
+        and category_fit == "Direct"
+        and event_definiteness == "Confirmed Action"
+        and democratic_consequence in {"Immediate", "Material"}
+        and len(trigger_hits) >= 1
     ):
         return "Watchlist"
 
     if (
         source_role in {"watchdog", "investigative"}
         and category_fit == "Direct"
-        and len(trigger_hits) >= 1
-        and event_definiteness in {"Confirmed Action", "Filed Case", "Developing / Unconfirmed"}
+        and event_definiteness == "Filed Case"
+        and len(trigger_hits) >= 2
+    ):
+        return "Watchlist"
+
+    if (
+        category_fit == "Direct"
+        and event_definiteness == "Developing / Unconfirmed"
+        and democratic_consequence == "Possible"
+        and len(trigger_hits) >= 2
     ):
         return "Watchlist"
 
