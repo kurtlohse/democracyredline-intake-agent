@@ -21,7 +21,7 @@ sources:
     reliability: 0.88
     enabled: true
 
-  # Broad context sources kept on a tighter leash by admission logic
+  # Broad context source, still useful but should be filtered by admission logic
   - name: NPR Politics
     url: https://feeds.npr.org/1014/rss.xml
     tier: Tier 2
@@ -30,13 +30,6 @@ sources:
     enabled: true
 
   # Specialist democracy / legal-watch sources
-  - name: Lawfare Democracy & Elections
-    url: https://www.lawfaremedia.org/rss.xml
-    tier: Tier 2
-    role: watchdog
-    reliability: 0.87
-    enabled: true
-
   - name: Campaign Legal Center
     url: https://campaignlegal.org/rss.xml
     tier: Tier 2
@@ -58,6 +51,13 @@ sources:
     reliability: 0.82
     enabled: true
 
+  - name: Democracy Docket
+    url: https://www.democracydocket.com/feed/
+    tier: Tier 2
+    role: watchdog
+    reliability: 0.82
+    enabled: true
+
   - name: ACLU
     url: https://www.aclu.org/news/feed
     tier: Tier 2
@@ -73,15 +73,14 @@ sources:
     reliability: 0.80
     enabled: true
 
-  # Democracy-law specialist
-  - name: Democracy Docket
-    url: https://www.democracydocket.com/feed/
+  # Disabled for now until stable public feeds/search layer is added or feed access improves
+  - name: Lawfare Democracy & Elections
+    url: https://www.lawfaremedia.org/rss.xml
     tier: Tier 2
     role: watchdog
-    reliability: 0.82
-    enabled: true
+    reliability: 0.87
+    enabled: false
 
-  # Disabled for now until stable public feeds/search layer is added
   - name: Associated Press
     url: https://apnews.com/index.rss
     tier: Tier 1
