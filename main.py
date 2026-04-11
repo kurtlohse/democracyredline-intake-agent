@@ -133,14 +133,12 @@ def compile_phrase_pattern(term: str) -> re.Pattern[str]:
     parts = [re.escape(p) for p in term.split() if p]
     if not parts:
         return re.compile(r"$^")
-    if len(parts) == 1:
-        return re.compile(rf"\b{parts[0]}\b", re.IGNORECASE)
-    joined = r"\s+".join(parts)
+    joined = r"[\s\-/,:;()]+".join(parts)
     return re.compile(rf"(?<!\w){joined}(?!\w)", re.IGNORECASE)
 
 
 def matched_terms(text: str, raw_terms: list[str]) -> list[str]:
-    hits = []
+    hits: list[str] = []
     for term in raw_terms:
         if compile_phrase_pattern(term).search(text):
             hits.append(term)
@@ -196,7 +194,10 @@ def suggest_primary_signal(text: str) -> str:
     for label, group in mapping:
         if group in hits:
             return label
-    if any(compile_phrase_pattern(t).search(text) for t in RULES.get("signal_fallbacks", {}).get("executive_overreach", [])):
+    if any(
+        compile_phrase_pattern(t).search(text)
+        for t in RULES.get("signal_fallbacks", {}).get("executive_overreach", [])
+    ):
         return "Executive overreach"
     return ""
 
@@ -316,14 +317,30 @@ def admission_decision(
 ) -> str:
     if event_definiteness == "Commentary / Preview":
         return "Reject"
-    if category_fit == "Direct" and event_definiteness in {"Confirmed Action", "Filed Case"} and democratic_consequence in {"Immediate", "Material"}:
+
+    if (
+        category_fit == "Direct"
+        and event_definiteness in {"Confirmed Action", "Filed Case"}
+        and democratic_consequence in {"Immediate", "Material"}
+    ):
         return "Main Intake"
-    if source_role in {"watchdog", "investigative"} and category_fit in {"Direct", "Partial"} and event_definiteness in {"Confirmed Action", "Filed Case", "Developing / Unconfirmed"}:
+
+    if (
+        category_fit == "Direct"
+        and event_definiteness == "Developing / Unconfirmed"
+        and democratic_consequence == "Possible"
+        and len(trigger_hits) >= 2
+    ):
         return "Watchlist"
-    if category_fit in {"Direct", "Partial"} and democratic_consequence == "Possible":
+
+    if (
+        source_role in {"watchdog", "investigative"}
+        and category_fit == "Direct"
+        and len(trigger_hits) >= 1
+        and event_definiteness in {"Confirmed Action", "Filed Case", "Developing / Unconfirmed"}
+    ):
         return "Watchlist"
-    if len(trigger_hits) >= 2 and category_fit != "Weak":
-        return "Watchlist"
+
     return "Reject"
 
 
@@ -389,7 +406,7 @@ def determine_threat_cluster(
     if "election_interference" in trigger_hits:
         return "ELECTION_ADMIN_INTEGRITY_2026"
     if oversight_failure_flag == "Yes" and ("coercive_state_power" in trigger_hits or "war powers" in text):
-        return "IRAN_WAR_POWERS_2026"
+        return "WAR_POWERS_OVERSIGHT_2026"
     if "press_intimidation" in trigger_hits:
         return "PRESS_INTIMIDATION_2026"
     if "institutional_capture" in trigger_hits:
@@ -496,9 +513,7 @@ def compute_row_escalation_score(
     elif entity_count == 1:
         score += 1
 
-    if src_priority == "Top":
-        score += 1
-    elif src_priority == "High":
+    if src_priority in {"Top", "High"}:
         score += 1
 
     if confidence == "High":
@@ -540,13 +555,11 @@ def suggest_editor_priority(
     strong_count = sum(1 for k in trigger_hits if k in strong_trigger_groups)
 
     if score_impact_candidate == "Unlikely":
-        if strong_count >= 2:
-            return "Medium"
-        return "Low"
+        return "Medium" if strong_count >= 2 else "Low"
 
     if escalation_score >= 12 and strong_count >= 2:
         return "Urgent"
-    if escalation_score >= 8:
+    if escalation_score >= 8 and (strong_count >= 1 or score_impact_candidate == "Likely"):
         return "High"
     if escalation_score >= 4:
         return "Medium"
@@ -747,9 +760,7 @@ def refine_duplicate_clusters(rows: list[dict[str, str]]) -> None:
     counts = Counter(seeds)
     for row in rows:
         seed = row.get("duplicate_cluster", "")
-        if not seed:
-            continue
-        if counts.get(seed, 0) < 2:
+        if seed and counts.get(seed, 0) < 2:
             row["duplicate_cluster"] = ""
 
 
@@ -763,6 +774,14 @@ def dedupe_rows_by_link(rows: list[dict[str, str]]) -> list[dict[str, str]]:
         seen.add(link)
         out.append(row)
     return out
+
+
+def validate_rows(rows: list[dict[str, str]]) -> None:
+    for i, row in enumerate(rows, start=1):
+        missing = [h for h in HEADERS if h not in row]
+        extra = [k for k in row if k not in HEADERS]
+        if missing or extra:
+            raise ValueError(f"Row {i} schema mismatch. Missing={missing} Extra={extra}")
 
 
 def write_csv(rows: list[dict[str, str]]) -> None:
@@ -785,31 +804,29 @@ def main() -> None:
         published_dt = iso_to_dt(getattr(item, "published_at", None))
         if published_dt and published_dt < cutoff:
             continue
+
         row = build_row(item)
         if row["admission_decision"] == "Reject":
             continue
+
         rows.append(row)
 
     rows = dedupe_rows_by_link(rows)
     refine_duplicate_clusters(rows)
     rows = rows[:max_items]
 
+    validate_rows(rows)
     write_csv(rows)
     print(f"Wrote {len(rows)} rows to {OUTPUT_CSV}")
 
-print(f"Rows after classification/dedupe: {len(rows)}")
-for row in rows[:20]:
-    print(f"{row.get('published_at', '')} | {row.get('source_name', '')} | {row.get('title', '')}")
-    print(f"LINK: {row.get('link', '')}")
-    
-    try:
-        print(f"Rows after classification/dedupe: {len(rows)}")
-print("Generated links for this run:")
-for row in rows[:20]:
-    print(f"{row.get('published_at', '')} | {row.get('source_name', '')} | {row.get('title', '')}")
-    print(f"LINK: {row.get('link', '')}")
+    print(f"Rows after classification/dedupe: {len(rows)}")
+    print("Generated links for this run:")
+    for row in rows[:20]:
+        print(f"{row.get('published_at', '')} | {row.get('source_name', '')} | {row.get('title', '')}")
+        print(f"LINK: {row.get('link', '')}")
 
-new_count = append_rows_to_sheet(rows, worksheet_name="Intake", headers=HEADERS)
+    try:
+        new_count = append_rows_to_sheet(rows, worksheet_name="Intake", headers=HEADERS)
         if new_count == 0:
             print("No new rows to append after dedupe.")
         print(f"Appended {new_count} new rows to worksheet 'Intake'.")
