@@ -178,6 +178,20 @@ def source_priority(source_name: str, source_role: str) -> str:
     return "Standard"
 
 
+def strong_trigger_count(trigger_hits: dict[str, list[str]]) -> int:
+    strong_groups = {
+        "court_defiance",
+        "election_interference",
+        "weaponized_justice",
+        "press_intimidation",
+        "coercive_state_power",
+        "due_process",
+        "institutional_capture",
+        "oversight_failure",
+    }
+    return sum(1 for k in trigger_hits if k in strong_groups)
+
+
 def suggest_primary_signal(text: str) -> str:
     mapping = [
         ("Election interference", "election_interference"),
@@ -218,11 +232,11 @@ def suggest_category(text: str, primary_signal: str) -> str:
         ),
         (
             "Coercive State Power & Policing Norms",
-            ["federal agents", "riot control", "military deployment", "national guard", "insurrection act", "surveillance", "raids"],
+            ["federal agents", "military deployment", "national guard", "insurrection act", "surveillance", "raids", "troops deployed"],
         ),
         (
             "Political Targeting / Weaponization of Justice",
-            ["retaliatory investigation", "targeting rival", "political prosecution", "weaponized justice", "selective prosecution", "fbi file", "doj file"],
+            ["retaliatory investigation", "political prosecution", "selective prosecution", "justice department targeted", "grand jury against opponent"],
         ),
         (
             "Press Freedom & Information Control",
@@ -234,7 +248,7 @@ def suggest_category(text: str, primary_signal: str) -> str:
         ),
         (
             "Institutional Checks & Anti-Corruption",
-            ["inspector general", "ethics violation", "conflict of interest", "corruption", "bribery", "self-dealing", "watchdog removed", "oversight blocked", "war powers", "subpoena defied"],
+            ["inspector general", "ethics violation", "conflict of interest", "corruption", "bribery", "watchdog removed", "oversight blocked", "war powers", "subpoena defied"],
         ),
         (
             "Military & Intelligence Neutrality",
@@ -306,17 +320,27 @@ def classify_event_definiteness(event_type: str) -> str:
     return "General Context"
 
 
-def classify_category_fit(category: str, primary_signal: str, trigger_hits: dict[str, list[str]]) -> str:
+def classify_category_fit(category: str, primary_signal: str, trigger_hits: dict[str, list[str]], entity_hits: dict[str, list[str]]) -> str:
     trigger_count = len(trigger_hits)
+    entity_count = len(entity_hits.get("institutions", [])) + len(entity_hits.get("targets", []))
+
     if category and (primary_signal or trigger_count >= 1):
+        return "Direct"
+    if category and entity_count >= 2:
         return "Direct"
     if category or primary_signal or trigger_count >= 1:
         return "Partial"
     return "Weak"
 
 
-def classify_democratic_consequence(event_type: str, category_fit: str, trigger_hits: dict[str, list[str]]) -> str:
+def classify_democratic_consequence(
+    event_type: str,
+    category_fit: str,
+    trigger_hits: dict[str, list[str]],
+    primary_signal: str,
+) -> str:
     trigger_count = len(trigger_hits)
+    strong_count = strong_trigger_count(trigger_hits)
 
     if category_fit == "Direct" and event_type in {
         "Court Ruling",
@@ -333,30 +357,13 @@ def classify_democratic_consequence(event_type: str, category_fit: str, trigger_
     if category_fit == "Direct" and event_type == "Court Filing":
         return "Material"
 
-    if category_fit == "Direct" and event_type == "Developing / Unconfirmed" and trigger_count >= 2:
+    if event_type == "Developing / Unconfirmed" and (trigger_count >= 2 or strong_count >= 1):
         return "Possible"
 
-    if category_fit == "Partial" and trigger_count >= 2:
-        return "Possible"
-
-    if category_fit == "Direct" and trigger_count >= 1:
+    if category_fit == "Partial" and primary_signal and (trigger_count >= 1 or strong_count >= 1):
         return "Possible"
 
     return "Remote"
-
-
-def strong_trigger_count(trigger_hits: dict[str, list[str]]) -> int:
-    strong_trigger_groups = {
-        "weaponized_justice",
-        "court_defiance",
-        "election_interference",
-        "oversight_failure",
-        "due_process",
-        "press_intimidation",
-        "coercive_state_power",
-        "institutional_capture",
-    }
-    return sum(1 for k in trigger_hits if k in strong_trigger_groups)
 
 
 def admission_decision(
@@ -384,9 +391,10 @@ def admission_decision(
 
     if (
         source_role in {"watchdog", "investigative"}
-        and category_fit == "Direct"
+        and category_fit in {"Direct", "Partial"}
         and event_definiteness in {"Confirmed Action", "Filed Case"}
-        and (trigger_count >= 1 or strong_count >= 1 or (primary_signal and entity_count >= 1))
+        and primary_signal
+        and (trigger_count >= 1 or strong_count >= 1 or entity_count >= 2)
     ):
         return "Watchlist"
 
@@ -400,10 +408,10 @@ def admission_decision(
 
     if (
         source_role in {"watchdog", "investigative"}
-        and category_fit in {"Direct", "Partial"}
-        and event_definiteness in {"Confirmed Action", "Filed Case"}
+        and category_fit == "Direct"
+        and event_definiteness == "General Context"
         and primary_signal
-        and (trigger_count >= 1 or entity_count >= 2)
+        and strong_count >= 1
     ):
         return "Watchlist"
 
@@ -714,8 +722,11 @@ def build_row(item: Any) -> dict[str, str]:
 
     event_type = classify_event_type(text, exclusion_terms)
     event_definiteness = classify_event_definiteness(event_type)
-    category_fit = classify_category_fit(category, primary_signal, trigger_hits)
-    democratic_consequence = classify_democratic_consequence(event_type, category_fit, trigger_hits)
+    category_fit = classify_category_fit(category, primary_signal, trigger_hits, entity_hits)
+    democratic_consequence = classify_democratic_consequence(
+        event_type, category_fit, trigger_hits, primary_signal
+    )
+
     admission = admission_decision(
         source_role=source_role,
         category_fit=category_fit,
