@@ -1,4 +1,6 @@
 top_priority_sources:
+  - propublica
+  - scotusblog
   - reuters
   - associated press
   - ap news
@@ -9,8 +11,6 @@ top_priority_sources:
   - financial times
   - washington post
   - new york times
-  - propublica
-  - scotusblog
 
 high_priority_sources:
   - campaign legal center
@@ -20,13 +20,13 @@ high_priority_sources:
   - aclu
   - npr
   - the intercept
-  - nbc news
 
 watch_sources:
   - brennan center
+  - states united
+  - freedom of the press foundation
   - legal defense fund
   - ldf
-  - states united
   - ground news
 
 watch_institutions:
@@ -41,6 +41,7 @@ watch_institutions:
   - irs
   - federal election commission
   - election board
+  - secretary of state
   - supreme court
   - department of defense
   - federal agents
@@ -49,6 +50,8 @@ watch_institutions:
   - house
   - senate
   - war powers
+  - voting machine
+  - board of elections
 
 watch_targets:
   - journalist
@@ -66,6 +69,7 @@ watch_targets:
   - voter
   - civilian
   - whistleblower
+  - inspector general
 
 exclude_if_title_or_summary_contains:
   - opinion
@@ -77,123 +81,142 @@ exclude_if_title_or_summary_contains:
   - calendar
   - oral argument preview
   - interview
+  - podcast
+  - transcript
+  - newsletter
+  - roundup
+  - weekly update
+  - live blog
+  - live updates
+  - recap
+  - how to think about
+  - what this means
+  - why this matters
+  - what it means for
+  - key takeaways
 
 trigger_groups:
   court_defiance:
-    - court order
-    - defied court
-    - ignored court
-    - ignored ruling
-    - contempt
-    - injunction
-    - stay order
-    - refused to comply
-    - judicial order
-    - violated order
-    - blocked by court
+    - defied court order
+    - ignored court order
+    - refused to comply with court order
+    - violated court order
+    - violated injunction
+    - contempt finding
     - court said unlawful
+    - court blocked
+    - injunction granted
+    - stay denied
+    - emergency stay denied
 
   election_interference:
-    - election certification
     - refused to certify
-    - ballot access
-    - voter purge
-    - elector
-    - voting machine
-    - peaceful transfer
-    - election official
-    - vote count
-    - voter roll
-    - redistricting
-    - election board voted
+    - ballot access denied
     - removed from ballot
+    - voter purge
+    - election official threatened
+    - election official removed
+    - vote count halted
+    - certification delayed
+    - fake electors
+    - elector scheme
+    - voting machine seized
+    - voter roll purge
+    - board of elections voted
+    - election board voted
 
   weaponized_justice:
-    - investigate opponent
     - retaliatory investigation
-    - political prosecution
-    - selective prosecution
-    - targeting rival
-    - grand jury against opponent
-    - prosecution of opponent
     - politically motivated charges
+    - prosecution of opponent
+    - grand jury against opponent
     - justice department targeted
+    - investigate political opponent
+    - targeted political rival
+    - selective prosecution of opponent
 
   press_intimidation:
     - journalist arrested
     - reporter arrested
+    - reporter detained
+    - detained journalist
     - newsroom raid
     - subpoenaed reporter
     - press access revoked
-    - detained journalist
     - media threatened
-    - reporter detained
+    - journalist barred
+    - reporter barred
 
   coercive_state_power:
-    - national guard
+    - national guard deployed
+    - troops deployed
     - military deployment
     - domestic troop use
     - insurrection act
     - martial law
     - mass raids
-    - federal agents
+    - federal agents deployed
     - riot control
-    - paramilitary
-    - surveillance powers
-    - troops deployed
+    - paramilitary force
+    - surveillance powers expanded
 
   due_process:
-    - habeas
-    - due process
-    - indefinite detention
+    - habeas petition
+    - denied habeas
+    - due process violation
     - detention without hearing
-    - deportation
+    - deported without hearing
     - rendition
-    - without hearing
     - without counsel
-    - held for days
+    - held for days without charge
     - denied hearing
+    - indefinite detention
 
   institutional_capture:
     - inspector general fired
     - watchdog removed
-    - civil service purge
-    - installed loyalist
-    - stacking agency
     - watchdog ousted
     - ethics chief removed
     - oversight official fired
+    - civil service purge
+    - installed loyalist
+    - agency independence curtailed
+    - independent agency weakened
 
   corruption:
-    - bribery
-    - kickback
+    - bribery charge
+    - kickback scheme
     - pay to play
     - self-dealing
     - conflict of interest
     - ethics violation
     - corruption probe
+    - undisclosed gifts
+    - financial disclosure violation
 
   oversight_failure:
     - blocked vote
     - refused vote
     - delayed vote
     - adjourned before vote
-    - ignored war powers
     - no authorization
     - oversight blocked
     - congress sidelined
     - failed to constrain
     - prevented debate
-    - war powers resolution
-    - blocked effort to halt
+    - war powers resolution blocked
+    - war powers ignored
+    - subpoena defied
+    - refused testimony
+    - blocked oversight hearing
 
 signal_fallbacks:
   executive_overreach:
-    - executive order
-    - emergency power
-    - sweeping authority
-    - expanded power
-    - presidential power
+    - executive order signed
+    - emergency power invoked
+    - sweeping authority claimed
+    - expanded presidential power
+    - presidential power asserted
     - unitary executive
 
 event_type_patterns:
@@ -202,16 +225,19 @@ event_type_patterns:
     - supreme court decision
     - supreme court held
     - opinion of the court
+    - supreme court blocked
+    - supreme court allowed
 
   court_ruling:
-    - granted injunction
-    - denied injunction
-    - order issued
-    - contempt finding
-    - appeals court ruled
     - federal judge ruled
+    - appeals court ruled
     - court blocked
     - court allowed
+    - injunction granted
+    - injunction denied
+    - order issued
+    - contempt finding
+    - judge ordered
 
   court_filing:
     - lawsuit filed
@@ -221,24 +247,28 @@ event_type_patterns:
     - suit filed
     - filed in court
     - sued
+    - emergency application filed
+    - injunction request filed
 
   arrest_detention:
     - arrested
     - detained
     - taken into custody
     - jailed
-    - held for days
     - imprisoned
+    - held for days
+    - charged and detained
 
   executive_or_agency_action:
-    - executive order
-    - directive
+    - executive order signed
+    - directive issued
     - agency action
     - announced policy
     - revoked protection
     - terminated status
     - removed protection
-    - signed order
+    - regulation issued
+    - guidance issued
 
   media_targeting:
     - press access revoked
@@ -246,31 +276,38 @@ event_type_patterns:
     - journalist arrested
     - newsroom raid
     - media threatened
+    - journalist barred
+    - reporter detained
 
   election_action:
-    - certified election
     - refused to certify
+    - certified election
     - removed from ballot
     - ballot access denied
     - voter purge
     - election board voted
+    - board of elections voted
+    - certification delayed
 
   watchdog_removal:
     - inspector general fired
     - watchdog removed
     - ethics chief removed
     - oversight official fired
+    - watchdog ousted
 
   military_security:
-    - deployed troops
     - national guard deployed
+    - troops deployed
     - military deployment
     - federal agents deployed
+    - domestic troop use
 
   developing:
-    - considering
-    - may file
+    - considering action
     - expected to file
+    - may file
     - could challenge
     - may challenge
     - expected to rule
+    - weighing action
