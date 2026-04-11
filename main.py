@@ -332,7 +332,12 @@ def classify_event_definiteness(event_type: str) -> str:
     return "General Context"
 
 
-def classify_category_fit(category: str, primary_signal: str, trigger_hits: dict[str, list[str]], entity_hits: dict[str, list[str]]) -> str:
+def classify_category_fit(
+    category: str,
+    primary_signal: str,
+    trigger_hits: dict[str, list[str]],
+    entity_hits: dict[str, list[str]],
+) -> str:
     trigger_count = len(trigger_hits)
     entity_count = len(entity_hits.get("institutions", [])) + len(entity_hits.get("targets", []))
 
@@ -369,7 +374,23 @@ def classify_democratic_consequence(
     return "Remote"
 
 
+def is_repeat_prone_watchdog(source_name: str, source_role: str) -> bool:
+    if source_role not in {"watchdog", "investigative"}:
+        return False
+
+    repeat_prone = {
+        "campaign legal center",
+        "protect democracy",
+        "democracy forward",
+        "aclu",
+        "democracy docket",
+    }
+    normalized = normalize(source_name)
+    return any(name in normalized for name in repeat_prone)
+
+
 def admission_decision(
+    source_name: str,
     source_role: str,
     category_fit: str,
     event_type: str,
@@ -382,6 +403,7 @@ def admission_decision(
     trigger_count = len(trigger_hits)
     strong_count = strong_trigger_count(trigger_hits)
     entity_count = len(entity_hits.get("institutions", [])) + len(entity_hits.get("targets", []))
+    repeat_prone_watchdog = is_repeat_prone_watchdog(source_name, source_role)
 
     if event_definiteness == "Commentary / Preview":
         return "Reject"
@@ -411,7 +433,16 @@ def admission_decision(
         return "Watchlist"
 
     if (
+        repeat_prone_watchdog
+        and event_type == "Court Filing"
+        and category_fit == "Direct"
+        and strong_count >= 1
+    ):
+        return "Watchlist"
+
+    if (
         source_role in {"watchdog", "investigative"}
+        and not repeat_prone_watchdog
         and event_type == "Developing / Unconfirmed"
         and category_fit == "Direct"
         and (trigger_count >= 2 or strong_count >= 1)
@@ -731,6 +762,7 @@ def build_row(item: Any) -> dict[str, str]:
     )
 
     admission = admission_decision(
+        source_name=source_name,
         source_role=source_role,
         category_fit=category_fit,
         event_type=event_type,
