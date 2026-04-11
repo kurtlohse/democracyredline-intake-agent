@@ -57,6 +57,18 @@ HEADERS = [
     "notes",
 ]
 
+CONCRETE_EVENT_TYPES = {
+    "Court Filing",
+    "Court Ruling",
+    "Supreme Court Ruling",
+    "Arrest / Detention",
+    "Executive Order / Agency Action",
+    "Election Administration Action",
+    "Media Restriction / Journalist Targeting",
+    "Watchdog / Oversight Removal",
+    "Military / Security Deployment",
+}
+
 
 def load_rules() -> dict[str, Any]:
     if not RULES_PATH.exists():
@@ -342,16 +354,7 @@ def classify_democratic_consequence(
     trigger_count = len(trigger_hits)
     strong_count = strong_trigger_count(trigger_hits)
 
-    if category_fit == "Direct" and event_type in {
-        "Court Ruling",
-        "Supreme Court Ruling",
-        "Arrest / Detention",
-        "Executive Order / Agency Action",
-        "Election Administration Action",
-        "Media Restriction / Journalist Targeting",
-        "Watchdog / Oversight Removal",
-        "Military / Security Deployment",
-    }:
+    if category_fit == "Direct" and event_type in CONCRETE_EVENT_TYPES - {"Court Filing"}:
         return "Immediate"
 
     if category_fit == "Direct" and event_type == "Court Filing":
@@ -369,6 +372,7 @@ def classify_democratic_consequence(
 def admission_decision(
     source_role: str,
     category_fit: str,
+    event_type: str,
     event_definiteness: str,
     democratic_consequence: str,
     trigger_hits: dict[str, list[str]],
@@ -384,34 +388,33 @@ def admission_decision(
 
     if (
         category_fit == "Direct"
+        and event_type in CONCRETE_EVENT_TYPES
         and event_definiteness in {"Confirmed Action", "Filed Case"}
         and democratic_consequence in {"Immediate", "Material"}
     ):
         return "Main Intake"
 
     if (
-        source_role in {"watchdog", "investigative"}
+        source_role == "evidence"
         and category_fit in {"Direct", "Partial"}
-        and event_definiteness in {"Confirmed Action", "Filed Case"}
-        and primary_signal
-        and (trigger_count >= 1 or strong_count >= 1 or entity_count >= 2)
-    ):
-        return "Watchlist"
-
-    if (
-        category_fit == "Direct"
-        and event_definiteness == "Developing / Unconfirmed"
-        and democratic_consequence == "Possible"
-        and (trigger_count >= 2 or strong_count >= 1)
+        and event_type in CONCRETE_EVENT_TYPES
+        and (trigger_count >= 1 or strong_count >= 1 or primary_signal)
     ):
         return "Watchlist"
 
     if (
         source_role in {"watchdog", "investigative"}
+        and event_type in CONCRETE_EVENT_TYPES
+        and category_fit in {"Direct", "Partial"}
+        and (trigger_count >= 1 or strong_count >= 1 or (primary_signal and entity_count >= 2))
+    ):
+        return "Watchlist"
+
+    if (
+        source_role in {"watchdog", "investigative"}
+        and event_type == "Developing / Unconfirmed"
         and category_fit == "Direct"
-        and event_definiteness == "General Context"
-        and primary_signal
-        and strong_count >= 1
+        and (trigger_count >= 2 or strong_count >= 1)
     ):
         return "Watchlist"
 
@@ -730,6 +733,7 @@ def build_row(item: Any) -> dict[str, str]:
     admission = admission_decision(
         source_role=source_role,
         category_fit=category_fit,
+        event_type=event_type,
         event_definiteness=event_definiteness,
         democratic_consequence=democratic_consequence,
         trigger_hits=trigger_hits,
