@@ -21,7 +21,7 @@ def get_or_create_worksheet(
     spreadsheet: gspread.Spreadsheet,
     worksheet_name: str,
     rows: int = 2000,
-    cols: int = 30,
+    cols: int = 40,
 ) -> gspread.Worksheet:
     try:
         return spreadsheet.worksheet(worksheet_name)
