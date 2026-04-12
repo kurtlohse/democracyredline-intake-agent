@@ -71,13 +71,6 @@ sources:
     reliability: 0.80
     enabled: true
 
-  - name: Freedom of the Press Foundation
-    url: https://freedom.press/feed/
-    tier: Tier 2
-    role: watchdog
-    reliability: 0.86
-    enabled: true
-
   # Investigative early-warning source
   - name: The Intercept
     url: https://theintercept.com/feed/?lang=en
@@ -87,6 +80,13 @@ sources:
     enabled: true
 
   # Disabled / unstable / low-value for now
+  - name: Freedom of the Press Foundation
+    url: https://freedom.press/feed/
+    tier: Tier 2
+    role: watchdog
+    reliability: 0.86
+    enabled: false
+
   - name: Lawfare Democracy & Elections
     url: https://www.lawfaremedia.org/rss.xml
     tier: Tier 2
