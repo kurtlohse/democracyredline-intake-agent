@@ -42,6 +42,20 @@ sources:
     reliability: 0.87
     enabled: true
 
+  - name: ABC News Politics
+    url: https://feeds.abcnews.com/abcnews/politicsheadlines
+    tier: Tier 1
+    role: evidence
+    reliability: 0.87
+    enabled: true
+
+  - name: DOJ Press Releases
+    url: https://www.justice.gov/feeds/press-release.xml
+    tier: Tier 1
+    role: evidence
+    reliability: 0.93
+    enabled: true
+
   # Civil liberties / constitutional / democracy-law discovery
   - name: Campaign Legal Center
     url: https://campaignlegal.org/rss.xml
@@ -86,14 +100,6 @@ sources:
     reliability: 0.80
     enabled: true
 
-  # Defense / national security coverage for military politicization
-  - name: Military.com News
-    url: https://www.military.com/rss/news
-    tier: Tier 2
-    role: evidence
-    reliability: 0.80
-    enabled: true
-
   # Disabled / unstable / low-value for now
   - name: Freedom of the Press Foundation
     url: https://freedom.press/feed/
@@ -135,6 +141,13 @@ sources:
     tier: Tier 1
     role: evidence
     reliability: 0.92
+    enabled: false
+
+  - name: Military.com News
+    url: https://www.military.com/rss/news
+    tier: Tier 2
+    role: evidence
+    reliability: 0.80
     enabled: false
 
   - name: Ground News
