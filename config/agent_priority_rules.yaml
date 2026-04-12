@@ -1,15 +1,12 @@
 top_priority_sources:
   - propublica
   - scotusblog
-  - reuters
-  - associated press
-  - ap news
-  - afp
   - bbc
   - bbc news
-  - financial times
-  - washington post
-  - new york times
+  - npr
+  - nbc news
+  - pbs
+  - npr politics
 
 high_priority_sources:
   - campaign legal center
@@ -17,55 +14,68 @@ high_priority_sources:
   - democracy docket
   - democracy forward
   - aclu
-  - npr
   - the intercept
-  - freedom of the press foundation
+  - military.com
+  - lawfare
+  - just security
 
 watch_sources:
-  - brennan center
+  - freedom of the press foundation
   - states united
-  - legal defense fund
-  - ldf
-  - ground news
+  - brennan center
+  - brookings
+  - cato
+  - war on the rocks
 
 watch_institutions:
-  - fbi
   - doj
   - department of justice
   - dhs
   - department of homeland security
   - ice
+  - cbp
   - pentagon
+  - department of defense
   - national guard
-  - irs
-  - federal election commission
+  - fbi
+  - federal agents
+  - npr
+  - pbs
+  - voice of america
   - election board
   - board of elections
   - secretary of state
   - supreme court
-  - department of defense
-  - federal agents
+  - district court
+  - appeals court
   - inspector general
   - congress
-  - house
   - senate
+  - house
   - war powers
+  - army
+  - navy
+  - air force
+  - marine corps
 
 watch_targets:
   - journalist
   - reporter
-  - judge
+  - newsroom
+  - press corps
+  - attorney
+  - lawyers
+  - legal aid
   - election official
+  - voter
   - candidate
-  - lawmaker
-  - political opponent
   - protester
   - activist
-  - civil servant
   - immigrant
   - asylum seeker
-  - voter
-  - civilian
+  - detainee
+  - military leadership
+  - chief of staff
   - whistleblower
   - inspector general
 
@@ -84,6 +94,8 @@ exclude_if_title_or_summary_contains:
   - live blog
   - live updates
   - recap
+  - photo gallery
+  - newsletter edition
 
 trigger_groups:
   court_defiance:
@@ -100,7 +112,22 @@ trigger_groups:
     - court blocked
     - court said unlawful
     - judge ordered
-    - order issued
+    - rebuked by judge
+    - judge rebuked
+    - circumvent a lawful order
+    - refused to restore access
+
+  legal_retaliation:
+    - sanctions against attorneys
+    - sanctions against lawyers
+    - sanctions motion against attorneys
+    - emergency motions to halt deportations
+    - punished legal representation
+    - targeted attorneys
+    - retaliated against lawyers
+    - disciplined legal aid
+    - legal representation challenged
+    - sought sanctions against counsel
 
   election_interference:
     - refused to certify
@@ -117,6 +144,12 @@ trigger_groups:
     - election board voted
     - board of elections voted
     - voting machine seized
+    - voter intimidation
+    - intimidated voters
+    - chilling effect on voters
+    - suppression ahead of midterms
+    - voter access threatened
+    - polling place intimidation
 
   weaponized_justice:
     - retaliatory investigation
@@ -139,6 +172,16 @@ trigger_groups:
     - journalist barred
     - reporter barred
     - media threatened
+    - press access blocked
+    - barred from pentagon
+    - blocked press access
+    - retaliated against press
+    - independent media targeted
+    - defunding npr
+    - defunding pbs
+    - order defunding npr
+    - order defunding pbs
+    - unconstitutional order affecting media
 
   coercive_state_power:
     - national guard deployed
@@ -152,6 +195,8 @@ trigger_groups:
     - riot control
     - paramilitary force
     - surveillance powers expanded
+    - used agencies to intimidate
+    - federal agencies used to intimidate voters
 
   due_process:
     - habeas petition
@@ -164,6 +209,12 @@ trigger_groups:
     - denied hearing
     - indefinite detention
     - held for days without charge
+    - deported to third country
+    - third-party deportation
+    - no ties to destination country
+    - transfer without legal process
+    - deportation to country with no ties
+    - removal without due process
 
   institutional_capture:
     - inspector general fired
@@ -202,6 +253,18 @@ trigger_groups:
     - war powers ignored
     - war powers resolution blocked
 
+  military_politicization:
+    - fired top military leadership
+    - purge of military leadership
+    - chief of staff fired
+    - military leadership purged
+    - politicized military
+    - politicized national security
+    - used military in civilian life
+    - military forces patrol civilian areas
+    - command loyalty concerns
+    - domestic military posture
+
 signal_fallbacks:
   executive_overreach:
     - executive order signed
@@ -231,6 +294,8 @@ event_type_patterns:
     - order issued
     - contempt finding
     - judge ordered
+    - judge rebuked
+    - court rebuked
 
   court_filing:
     - lawsuit filed
@@ -242,6 +307,7 @@ event_type_patterns:
     - sued
     - emergency application filed
     - injunction request filed
+    - emergency motion filed
 
   arrest_detention:
     - arrested
@@ -262,6 +328,9 @@ event_type_patterns:
     - removed protection
     - regulation issued
     - guidance issued
+    - defunded
+    - funding cut off
+    - deportation program launched
 
   media_targeting:
     - press access revoked
@@ -271,6 +340,9 @@ event_type_patterns:
     - media threatened
     - journalist barred
     - reporter detained
+    - defunding npr
+    - defunding pbs
+    - blocked pentagon access
 
   election_action:
     - refused to certify
@@ -281,6 +353,7 @@ event_type_patterns:
     - election board voted
     - board of elections voted
     - certification delayed
+    - voter intimidation reported
 
   watchdog_removal:
     - inspector general fired
@@ -295,6 +368,8 @@ event_type_patterns:
     - military deployment
     - federal agents deployed
     - domestic troop use
+    - chief of staff fired
+    - military leadership removed
 
   developing:
     - considering action
