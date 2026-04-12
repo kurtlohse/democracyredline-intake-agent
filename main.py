@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent
 OUTPUT_DIR = ROOT / "output"
 OUTPUT_CSV = OUTPUT_DIR / "monthly_intake.csv"
 RULES_PATH = ROOT / "config" / "agent_priority_rules.yaml"
+RUNTIME_SETTINGS_PATH = ROOT / "config" / "runtime_settings.yaml"
 
 HEADERS = [
     "date_collected",
@@ -78,14 +79,15 @@ REPEAT_PRONE_WATCHDOGS = {
 }
 
 
-def load_rules() -> dict[str, Any]:
-    if not RULES_PATH.exists():
-        raise FileNotFoundError(f"Missing rules file: {RULES_PATH}")
-    with open(RULES_PATH, "r", encoding="utf-8") as f:
+def load_yaml(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
-RULES = load_rules()
+RULES = load_yaml(RULES_PATH)
+RUNTIME_SETTINGS = load_yaml(RUNTIME_SETTINGS_PATH)
 
 
 def clean_text(value: Any) -> str:
@@ -107,6 +109,10 @@ def iso_to_dt(value: str | None) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except Exception:
         return None
+
+
+def dt_to_iso(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).isoformat()
 
 
 def month_from_published(value: str | None) -> str:
@@ -215,8 +221,8 @@ def strong_trigger_count(trigger_hits: dict[str, list[str]]) -> int:
 def is_repeat_prone_watchdog(source_name: str, source_role: str) -> bool:
     if source_role not in {"watchdog", "investigative"}:
         return False
-    name = normalize(source_name)
-    return any(s in name for s in REPEAT_PRONE_WATCHDOGS)
+    source_name_norm = normalize(source_name)
+    return any(name in source_name_norm for name in REPEAT_PRONE_WATCHDOGS)
 
 
 def title_stem(title: str) -> str:
@@ -400,36 +406,38 @@ def classify_democratic_consequence(
     return "Remote"
 
 
-def passes_watchdog_freshness_gate(
-    source_name: str,
-    source_role: str,
-    published_at: str,
-    event_type: str,
-    trigger_hits: dict[str, list[str]],
-) -> bool:
-    if source_role not in {"watchdog", "investigative"}:
-        return True
+def freshness_bonus(published_at: str) -> int:
+    dt = iso_to_dt(published_at)
+    if dt is None:
+        return 0
+
+    age = datetime.now(timezone.utc) - dt
+    high_days = int(RUNTIME_SETTINGS.get("freshness_days_high", 3))
+    medium_days = int(RUNTIME_SETTINGS.get("freshness_days_medium", 7))
+
+    if age <= timedelta(days=high_days):
+        return 3
+    if age <= timedelta(days=medium_days):
+        return 2
+    return 0
+
+
+def soft_old_watchdog_penalty(source_name: str, source_role: str, published_at: str) -> int:
+    if not is_repeat_prone_watchdog(source_name, source_role):
+        return 0
 
     dt = iso_to_dt(published_at)
     if dt is None:
-        return False
+        return 1
 
+    soft_age_days = int(RUNTIME_SETTINGS.get("repeat_prone_watchdog_soft_age_days", 10))
     age = datetime.now(timezone.utc) - dt
-    strong_count = strong_trigger_count(trigger_hits)
-
-    if age <= timedelta(days=3):
-        return True
-
-    if event_type in CONCRETE_EVENT_TYPES and strong_count >= 1 and age <= timedelta(days=7):
-        return True
-
-    return False
+    return 2 if age > timedelta(days=soft_age_days) else 0
 
 
 def admission_decision(
     source_name: str,
     source_role: str,
-    published_at: str,
     category_fit: str,
     event_type: str,
     event_definiteness: str,
@@ -437,16 +445,15 @@ def admission_decision(
     trigger_hits: dict[str, list[str]],
     entity_hits: dict[str, list[str]],
     primary_signal: str,
+    published_at: str,
 ) -> str:
     trigger_count = len(trigger_hits)
     strong_count = strong_trigger_count(trigger_hits)
     entity_count = len(entity_hits.get("institutions", [])) + len(entity_hits.get("targets", []))
     repeat_prone_watchdog = is_repeat_prone_watchdog(source_name, source_role)
+    freshness = freshness_bonus(published_at)
 
     if event_definiteness == "Commentary / Preview":
-        return "Reject"
-
-    if not passes_watchdog_freshness_gate(source_name, source_role, published_at, event_type, trigger_hits):
         return "Reject"
 
     if (
@@ -477,7 +484,7 @@ def admission_decision(
         repeat_prone_watchdog
         and event_type == "Court Filing"
         and category_fit == "Direct"
-        and strong_count >= 1
+        and (strong_count >= 1 or freshness >= 2)
     ):
         return "Watchlist"
 
@@ -628,6 +635,8 @@ def determine_cluster_status(cluster_score: int, threat_cluster: str) -> str:
 
 
 def compute_row_escalation_score(
+    source_name: str,
+    source_role: str,
     source_tier: str,
     confidence: str,
     src_priority: str,
@@ -635,6 +644,7 @@ def compute_row_escalation_score(
     trigger_hits: dict[str, list[str]],
     entity_hits: dict[str, list[str]],
     event_definiteness: str,
+    published_at: str,
 ) -> int:
     score = 0
 
@@ -680,7 +690,10 @@ def compute_row_escalation_score(
     if "election_interference" in trigger_hits:
         score += 2
 
-    return score
+    score += freshness_bonus(published_at)
+    score -= soft_old_watchdog_penalty(source_name, source_role, published_at)
+
+    return max(score, 0)
 
 
 def suggest_score_impact_candidate(escalation_score: int, admission: str, primary_signal: str) -> str:
@@ -830,7 +843,6 @@ def build_row(item: Any) -> dict[str, str]:
     admission = admission_decision(
         source_name=source_name,
         source_role=source_role,
-        published_at=published_at,
         category_fit=category_fit,
         event_type=event_type,
         event_definiteness=event_definiteness,
@@ -838,6 +850,7 @@ def build_row(item: Any) -> dict[str, str]:
         trigger_hits=trigger_hits,
         entity_hits=entity_hits,
         primary_signal=primary_signal,
+        published_at=published_at,
     )
 
     oversight_failure_flag = determine_oversight_failure_flag(trigger_hits)
@@ -854,6 +867,8 @@ def build_row(item: Any) -> dict[str, str]:
     cluster_status = determine_cluster_status(cluster_score, threat_cluster)
 
     row_score = compute_row_escalation_score(
+        source_name=source_name,
+        source_role=source_role,
         source_tier=source_tier,
         confidence=confidence,
         src_priority=src_priority,
@@ -861,6 +876,7 @@ def build_row(item: Any) -> dict[str, str]:
         trigger_hits=trigger_hits,
         entity_hits=entity_hits,
         event_definiteness=event_definiteness,
+        published_at=published_at,
     )
 
     score_impact_candidate = suggest_score_impact_candidate(
@@ -957,6 +973,16 @@ def dedupe_rows_by_link(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     return out
 
 
+def parse_report_start_date() -> datetime:
+    date_str = clean_text(RUNTIME_SETTINGS.get("last_published_report_date", ""))
+    dt = iso_to_dt(date_str)
+    if dt is not None:
+        return dt
+
+    default_days = int(RUNTIME_SETTINGS.get("default_lookback_days", 30))
+    return datetime.now(timezone.utc) - timedelta(days=default_days)
+
+
 def validate_rows(rows: list[dict[str, str]]) -> None:
     for i, row in enumerate(rows, start=1):
         missing = [h for h in HEADERS if h not in row]
@@ -974,16 +1000,17 @@ def write_csv(rows: list[dict[str, str]]) -> None:
 
 
 def main() -> None:
-    lookback_days = int(os.getenv("LOOKBACK_DAYS", "10"))
-    max_items = int(os.getenv("MAX_ITEMS_PER_RUN", "75"))
-    cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+    max_items = int(os.getenv("MAX_ITEMS_PER_RUN", "100"))
+    report_start_dt = parse_report_start_date()
+
+    print(f"Using report window start: {dt_to_iso(report_start_dt)}")
 
     items = fetch_all_feeds()
     rows: list[dict[str, str]] = []
 
     for item in items:
         published_dt = iso_to_dt(getattr(item, "published_at", None))
-        if published_dt and published_dt < cutoff:
+        if published_dt and published_dt < report_start_dt:
             continue
 
         row = build_row(item)
