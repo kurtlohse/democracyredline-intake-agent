@@ -51,6 +51,51 @@ def get_existing_links(worksheet: gspread.Worksheet, headers: Sequence[str]) -> 
     return {value.strip() for value in col_values[1:] if value.strip()}
 
 
+def get_existing_titles(
+    worksheet: gspread.Worksheet,
+    headers: Sequence[str],
+    max_rows: int = 500,
+) -> list[str]:
+    try:
+        title_index = list(headers).index("title") + 1
+    except ValueError:
+        return []
+
+    col_values = worksheet.col_values(title_index)
+    if len(col_values) <= 1:
+        return []
+
+    titles = [value.strip() for value in col_values[1:] if value.strip()]
+    if max_rows > 0:
+        titles = titles[-max_rows:]
+    return titles
+
+
+def get_existing_sheet_values(
+    worksheet_name: str = "Intake",
+    headers: Sequence[str] | None = None,
+    max_title_rows: int = 500,
+) -> tuple[set[str], list[str]]:
+    spreadsheet_id = os.getenv("GOOGLE_SHEETS_SPREADSHEET_ID")
+    if not spreadsheet_id:
+        return set(), []
+
+    if headers is None:
+        return set(), []
+
+    try:
+        gc = get_gspread_client()
+        spreadsheet = gc.open_by_key(spreadsheet_id)
+        worksheet = spreadsheet.worksheet(worksheet_name)
+    except Exception as e:
+        print(f"Could not read existing sheet values from '{worksheet_name}': {e}")
+        return set(), []
+
+    existing_links = get_existing_links(worksheet, headers)
+    existing_titles = get_existing_titles(worksheet, headers, max_rows=max_title_rows)
+    return existing_links, existing_titles
+
+
 def append_rows_to_sheet(
     rows: list[dict[str, str]],
     worksheet_name: str = "Intake",
