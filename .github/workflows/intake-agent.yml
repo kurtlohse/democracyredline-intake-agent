@@ -3,7 +3,7 @@ name: Democracy Redline Intake Agent
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 14 * * 1"
+    - cron: "0 14 * * *"
 
 jobs:
   run-intake:
@@ -33,6 +33,13 @@ jobs:
         run: |
           pwd
           ls -la
+          echo "Config folder:"
+          ls -la config || true
+
+      - name: Show runtime settings
+        run: |
+          echo "config/runtime_settings.yaml:"
+          cat config/runtime_settings.yaml || true
 
       - name: Create output folder
         run: mkdir -p output
