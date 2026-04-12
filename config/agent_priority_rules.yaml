@@ -6,7 +6,8 @@ top_priority_sources:
   - npr
   - nbc news
   - pbs
-  - npr politics
+  - abc news
+  - cbs news
 
 high_priority_sources:
   - campaign legal center
@@ -15,17 +16,13 @@ high_priority_sources:
   - democracy forward
   - aclu
   - the intercept
-  - military.com
-  - lawfare
-  - just security
 
 watch_sources:
   - freedom of the press foundation
-  - states united
   - brennan center
   - brookings
-  - cato
-  - war on the rocks
+  - just security
+  - states united
 
 watch_institutions:
   - doj
@@ -39,24 +36,22 @@ watch_institutions:
   - national guard
   - fbi
   - federal agents
-  - npr
-  - pbs
-  - voice of america
   - election board
   - board of elections
   - secretary of state
   - supreme court
   - district court
   - appeals court
-  - inspector general
   - congress
   - senate
   - house
-  - war powers
   - army
   - navy
   - air force
   - marine corps
+  - npr
+  - pbs
+  - voice of america
 
 watch_targets:
   - journalist
@@ -64,7 +59,8 @@ watch_targets:
   - newsroom
   - press corps
   - attorney
-  - lawyers
+  - lawyer
+  - counsel
   - legal aid
   - election official
   - voter
@@ -112,22 +108,31 @@ trigger_groups:
     - court blocked
     - court said unlawful
     - judge ordered
-    - rebuked by judge
     - judge rebuked
-    - circumvent a lawful order
+    - rebuked by judge
+    - court rebuked
+    - lawful order
+    - restore access
     - refused to restore access
+    - circumvent a lawful order
+    - defy the court
+    - defying the court
 
   legal_retaliation:
     - sanctions against attorneys
     - sanctions against lawyers
-    - sanctions motion against attorneys
-    - emergency motions to halt deportations
-    - punished legal representation
-    - targeted attorneys
-    - retaliated against lawyers
-    - disciplined legal aid
-    - legal representation challenged
+    - sanctions against counsel
+    - sought sanctions against attorneys
     - sought sanctions against counsel
+    - attorneys filing emergency motions
+    - lawyers filing emergency motions
+    - emergency motions to halt deportations
+    - retaliated against lawyers
+    - targeted attorneys
+    - punished legal representation
+    - legal aid targeted
+    - counsel targeted
+    - legal representation treated as obstruction
 
   election_interference:
     - refused to certify
@@ -150,6 +155,9 @@ trigger_groups:
     - suppression ahead of midterms
     - voter access threatened
     - polling place intimidation
+    - intimidated election workers
+    - suppression concerns
+    - voter suppression concerns
 
   weaponized_justice:
     - retaliatory investigation
@@ -160,6 +168,8 @@ trigger_groups:
     - selective prosecution
     - justice department targeted
     - grand jury against opponent
+    - administration targeted critics
+    - punished political opponents
 
   press_intimidation:
     - journalist arrested
@@ -173,8 +183,9 @@ trigger_groups:
     - reporter barred
     - media threatened
     - press access blocked
-    - barred from pentagon
     - blocked press access
+    - barred from pentagon
+    - pentagon press access
     - retaliated against press
     - independent media targeted
     - defunding npr
@@ -182,6 +193,11 @@ trigger_groups:
     - order defunding npr
     - order defunding pbs
     - unconstitutional order affecting media
+    - media crackdown
+    - crackdown on independent media
+    - freedom of expression
+    - free press
+    - press freedom
 
   coercive_state_power:
     - national guard deployed
@@ -197,6 +213,8 @@ trigger_groups:
     - surveillance powers expanded
     - used agencies to intimidate
     - federal agencies used to intimidate voters
+    - patrolling civilian life
+    - patrol civilian life
 
   due_process:
     - habeas petition
@@ -215,6 +233,9 @@ trigger_groups:
     - transfer without legal process
     - deportation to country with no ties
     - removal without due process
+    - systematic dismantling of protections
+    - deported to countries with no ties
+    - no meaningful hearing
 
   institutional_capture:
     - inspector general fired
@@ -264,6 +285,9 @@ trigger_groups:
     - military forces patrol civilian areas
     - command loyalty concerns
     - domestic military posture
+    - top military leadership removed
+    - allies framed as adversaries
+    - military leadership fired
 
 signal_fallbacks:
   executive_overreach:
@@ -274,6 +298,11 @@ signal_fallbacks:
     - expanded presidential power
     - presidential power asserted
     - unitary executive
+    - crackdown
+    - administration moved to
+    - administration ordered
+    - administration sought to
+    - administration began
 
 event_type_patterns:
   supreme_court_ruling:
@@ -296,6 +325,8 @@ event_type_patterns:
     - judge ordered
     - judge rebuked
     - court rebuked
+    - unconstitutional
+    - unlawful order
 
   court_filing:
     - lawsuit filed
@@ -317,6 +348,8 @@ event_type_patterns:
     - imprisoned
     - held for days
     - charged and detained
+    - without hearing
+    - detained without hearing
 
   executive_or_agency_action:
     - executive order signed
@@ -330,7 +363,12 @@ event_type_patterns:
     - guidance issued
     - defunded
     - funding cut off
-    - deportation program launched
+    - deportation program
+    - deported to third country
+    - began deporting
+    - started deporting
+    - administration moved to
+    - administration ordered
 
   media_targeting:
     - press access revoked
@@ -343,6 +381,8 @@ event_type_patterns:
     - defunding npr
     - defunding pbs
     - blocked pentagon access
+    - press access blocked
+    - independent media targeted
 
   election_action:
     - refused to certify
@@ -354,6 +394,7 @@ event_type_patterns:
     - board of elections voted
     - certification delayed
     - voter intimidation reported
+    - voter suppression concerns
 
   watchdog_removal:
     - inspector general fired
@@ -370,6 +411,8 @@ event_type_patterns:
     - domestic troop use
     - chief of staff fired
     - military leadership removed
+    - military leadership fired
+    - patrolling civilian life
 
   developing:
     - considering action
@@ -379,3 +422,5 @@ event_type_patterns:
     - may challenge
     - expected to rule
     - weighing action
+    - concerns mounting
+    - reports indicated
