@@ -6,6 +6,7 @@ top_priority_sources:
   - npr
   - nbc news
   - pbs
+  - pbs newshour
   - abc news
   - cbs news
 
@@ -55,21 +56,29 @@ watch_institutions:
 
 watch_targets:
   - journalist
+  - journalists
   - reporter
+  - reporters
   - newsroom
   - press corps
   - attorney
+  - attorneys
   - lawyer
+  - lawyers
   - counsel
   - legal aid
   - election official
+  - election worker
   - voter
+  - voters
   - candidate
   - protester
   - activist
   - immigrant
+  - immigrants
   - asylum seeker
   - detainee
+  - detainees
   - military leadership
   - chief of staff
   - whistleblower
@@ -98,7 +107,10 @@ trigger_groups:
     - defied court order
     - ignored court order
     - refused to comply
+    - refused compliance
     - violated court order
+    - in violation of court order
+    - violating court order
     - violated injunction
     - contempt finding
     - injunction granted
@@ -111,12 +123,18 @@ trigger_groups:
     - judge rebuked
     - rebuked by judge
     - court rebuked
-    - lawful order
     - restore access
+    - restore reporters access
+    - restore reporter access
+    - restore press access
     - refused to restore access
+    - refused to restore reporters access
+    - lawful order
     - circumvent a lawful order
     - defy the court
     - defying the court
+    - violating his earlier order
+    - violating her earlier order
 
   legal_retaliation:
     - sanctions against attorneys
@@ -158,6 +176,8 @@ trigger_groups:
     - intimidated election workers
     - suppression concerns
     - voter suppression concerns
+    - concerns mounting over voter access
+    - intimidate voters
 
   weaponized_justice:
     - retaliatory investigation
@@ -198,6 +218,11 @@ trigger_groups:
     - freedom of expression
     - free press
     - press freedom
+    - reporters access
+    - reporter access
+    - journalists access
+    - journalists' access
+    - impede the work of journalists
 
   coercive_state_power:
     - national guard deployed
@@ -236,6 +261,7 @@ trigger_groups:
     - systematic dismantling of protections
     - deported to countries with no ties
     - no meaningful hearing
+    - third country deportation
 
   institutional_capture:
     - inspector general fired
@@ -327,6 +353,12 @@ event_type_patterns:
     - court rebuked
     - unconstitutional
     - unlawful order
+    - federal judge finds
+    - judge finds in violation
+    - judge finds pentagon in violation
+    - in violation of court order
+    - violating his earlier order
+    - violating her earlier order
 
   court_filing:
     - lawsuit filed
@@ -383,6 +415,9 @@ event_type_patterns:
     - blocked pentagon access
     - press access blocked
     - independent media targeted
+    - reporters access
+    - restore reporters access
+    - restore press access
 
   election_action:
     - refused to certify
