@@ -69,6 +69,14 @@ CONCRETE_EVENT_TYPES = {
     "Military / Security Deployment",
 }
 
+REPEAT_PRONE_WATCHDOGS = {
+    "campaign legal center",
+    "protect democracy",
+    "democracy forward",
+    "democracy docket",
+    "aclu",
+}
+
 
 def load_rules() -> dict[str, Any]:
     if not RULES_PATH.exists():
@@ -202,6 +210,24 @@ def strong_trigger_count(trigger_hits: dict[str, list[str]]) -> int:
         "oversight_failure",
     }
     return sum(1 for k in trigger_hits if k in strong_groups)
+
+
+def is_repeat_prone_watchdog(source_name: str, source_role: str) -> bool:
+    if source_role not in {"watchdog", "investigative"}:
+        return False
+    name = normalize(source_name)
+    return any(s in name for s in REPEAT_PRONE_WATCHDOGS)
+
+
+def title_stem(title: str) -> str:
+    words = re.findall(r"[a-z0-9]+", normalize(title))
+    stopwords = {
+        "the", "a", "an", "and", "or", "of", "to", "in", "for", "on", "with",
+        "after", "over", "under", "at", "by", "from", "into", "about", "amid",
+        "trump", "us", "u", "s",
+    }
+    filtered = [w for w in words if w not in stopwords and len(w) > 2]
+    return " ".join(filtered[:8])
 
 
 def suggest_primary_signal(text: str) -> str:
@@ -374,24 +400,36 @@ def classify_democratic_consequence(
     return "Remote"
 
 
-def is_repeat_prone_watchdog(source_name: str, source_role: str) -> bool:
+def passes_watchdog_freshness_gate(
+    source_name: str,
+    source_role: str,
+    published_at: str,
+    event_type: str,
+    trigger_hits: dict[str, list[str]],
+) -> bool:
     if source_role not in {"watchdog", "investigative"}:
+        return True
+
+    dt = iso_to_dt(published_at)
+    if dt is None:
         return False
 
-    repeat_prone = {
-        "campaign legal center",
-        "protect democracy",
-        "democracy forward",
-        "aclu",
-        "democracy docket",
-    }
-    normalized = normalize(source_name)
-    return any(name in normalized for name in repeat_prone)
+    age = datetime.now(timezone.utc) - dt
+    strong_count = strong_trigger_count(trigger_hits)
+
+    if age <= timedelta(days=3):
+        return True
+
+    if event_type in CONCRETE_EVENT_TYPES and strong_count >= 1 and age <= timedelta(days=7):
+        return True
+
+    return False
 
 
 def admission_decision(
     source_name: str,
     source_role: str,
+    published_at: str,
     category_fit: str,
     event_type: str,
     event_definiteness: str,
@@ -406,6 +444,9 @@ def admission_decision(
     repeat_prone_watchdog = is_repeat_prone_watchdog(source_name, source_role)
 
     if event_definiteness == "Commentary / Preview":
+        return "Reject"
+
+    if not passes_watchdog_freshness_gate(source_name, source_role, published_at, event_type, trigger_hits):
         return "Reject"
 
     if (
@@ -705,6 +746,31 @@ def make_duplicate_cluster_seed(item: dict[str, str]) -> str:
     return "CLUSTER-" + "-".join(filtered[:3]).upper()
 
 
+def suppress_repeaty_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    seen_stems: set[str] = set()
+    out: list[dict[str, str]] = []
+
+    for row in rows:
+        stem = title_stem(row.get("title", ""))
+        source_name = row.get("source_name", "")
+        source_role = row.get("source_role", "")
+        event_type = row.get("event_type", "")
+
+        if (
+            stem
+            and is_repeat_prone_watchdog(source_name, source_role)
+            and event_type not in CONCRETE_EVENT_TYPES
+            and stem in seen_stems
+        ):
+            continue
+
+        if stem:
+            seen_stems.add(stem)
+        out.append(row)
+
+    return out
+
+
 def auto_notes(
     src_priority: str,
     admission: str,
@@ -764,6 +830,7 @@ def build_row(item: Any) -> dict[str, str]:
     admission = admission_decision(
         source_name=source_name,
         source_role=source_role,
+        published_at=published_at,
         category_fit=category_fit,
         event_type=event_type,
         event_definiteness=event_definiteness,
@@ -926,6 +993,7 @@ def main() -> None:
         rows.append(row)
 
     rows = dedupe_rows_by_link(rows)
+    rows = suppress_repeaty_rows(rows)
     refine_duplicate_clusters(rows)
     rows = rows[:max_items]
 
