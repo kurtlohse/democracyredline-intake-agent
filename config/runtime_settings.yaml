@@ -1,0 +1,11 @@
+last_published_report_date: "2026-03-18"
+
+# Safety fallback if the report date is missing or invalid.
+default_lookback_days: 30
+
+# Soft freshness preferences used in scoring, not as hard rejects.
+freshness_days_high: 3
+freshness_days_medium: 7
+
+# Extra caution for repeat-prone watchdog/legal sources.
+repeat_prone_watchdog_soft_age_days: 10
