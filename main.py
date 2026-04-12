@@ -425,17 +425,36 @@ def freshness_bonus(published_at: str) -> int:
     return 0
 
 
-def soft_old_watchdog_penalty(source_name: str, source_role: str, published_at: str) -> int:
+def repeat_prone_watchdog_hard_reject(
+    source_name: str,
+    source_role: str,
+    published_at: str,
+    event_type: str,
+    trigger_hits: dict[str, list[str]],
+    entity_hits: dict[str, list[str]],
+) -> bool:
     if not is_repeat_prone_watchdog(source_name, source_role):
-        return 0
+        return False
 
     dt = iso_to_dt(published_at)
     if dt is None:
-        return 1
+        return True
 
-    soft_age_days = int(RUNTIME_SETTINGS.get("repeat_prone_watchdog_soft_age_days", 10))
     age = datetime.now(timezone.utc) - dt
-    return 2 if age > timedelta(days=soft_age_days) else 0
+    soft_age_days = int(RUNTIME_SETTINGS.get("repeat_prone_watchdog_soft_age_days", 10))
+    strong_count = strong_trigger_count(trigger_hits)
+    entity_count = len(entity_hits.get("institutions", [])) + len(entity_hits.get("targets", []))
+
+    if age <= timedelta(days=soft_age_days):
+        return False
+
+    if event_type in {"Court Ruling", "Supreme Court Ruling", "Arrest / Detention", "Executive Order / Agency Action"} and strong_count >= 1:
+        return False
+
+    if event_type == "Court Filing" and (strong_count >= 2 or entity_count >= 3):
+        return False
+
+    return True
 
 
 def admission_decision(
@@ -457,6 +476,16 @@ def admission_decision(
     freshness = freshness_bonus(published_at)
 
     if event_definiteness == "Commentary / Preview":
+        return "Reject"
+
+    if repeat_prone_watchdog_hard_reject(
+        source_name=source_name,
+        source_role=source_role,
+        published_at=published_at,
+        event_type=event_type,
+        trigger_hits=trigger_hits,
+        entity_hits=entity_hits,
+    ):
         return "Reject"
 
     if (
@@ -487,7 +516,7 @@ def admission_decision(
         repeat_prone_watchdog
         and event_type == "Court Filing"
         and category_fit == "Direct"
-        and (strong_count >= 1 or freshness >= 2)
+        and (strong_count >= 2 or (freshness >= 2 and entity_count >= 2))
     ):
         return "Watchlist"
 
@@ -694,7 +723,9 @@ def compute_row_escalation_score(
         score += 2
 
     score += freshness_bonus(published_at)
-    score -= soft_old_watchdog_penalty(source_name, source_role, published_at)
+
+    if is_repeat_prone_watchdog(source_name, source_role):
+        score -= 2
 
     return max(score, 0)
 
@@ -771,14 +802,29 @@ def suppress_repeaty_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
         source_name = row.get("source_name", "")
         source_role = row.get("source_role", "")
         event_type = row.get("event_type", "")
+        published_at = row.get("published_at", "")
+        trigger_keys = row.get("notes", "")
 
-        if (
-            stem
-            and is_repeat_prone_watchdog(source_name, source_role)
-            and event_type not in CONCRETE_EVENT_TYPES
-            and stem in seen_stems
-        ):
-            continue
+        if stem and is_repeat_prone_watchdog(source_name, source_role):
+            dt = iso_to_dt(published_at)
+            age_bad = False
+            if dt is not None:
+                soft_age_days = int(RUNTIME_SETTINGS.get("repeat_prone_watchdog_soft_age_days", 10))
+                age_bad = (datetime.now(timezone.utc) - dt) > timedelta(days=soft_age_days)
+
+            if stem in seen_stems:
+                continue
+
+            if age_bad and event_type == "Court Filing" and "triggers=" not in trigger_keys:
+                continue
+
+            if age_bad and event_type not in {
+                "Court Ruling",
+                "Supreme Court Ruling",
+                "Arrest / Detention",
+                "Executive Order / Agency Action",
+            }:
+                continue
 
         if stem:
             seen_stems.add(stem)
