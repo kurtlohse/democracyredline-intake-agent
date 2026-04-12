@@ -23,19 +23,26 @@ sources:
 
   - name: NPR Politics
     url: https://feeds.npr.org/1014/rss.xml
-    tier: Tier 2
+    tier: Tier 1
     role: evidence
-    reliability: 0.86
+    reliability: 0.88
     enabled: true
 
   - name: NBC News Politics
     url: https://feeds.nbcnews.com/nbcnews/public/politics
-    tier: Tier 2
+    tier: Tier 1
     role: evidence
     reliability: 0.86
     enabled: true
 
-  # Specialist democracy / legal-watch sources
+  - name: PBS NewsHour Politics
+    url: https://www.pbs.org/newshour/feeds/rss/politics
+    tier: Tier 1
+    role: evidence
+    reliability: 0.87
+    enabled: true
+
+  # Civil liberties / constitutional / democracy-law discovery
   - name: Campaign Legal Center
     url: https://campaignlegal.org/rss.xml
     tier: Tier 2
@@ -71,11 +78,19 @@ sources:
     reliability: 0.80
     enabled: true
 
-  # Investigative early-warning source
+  # Investigative / accountability
   - name: The Intercept
     url: https://theintercept.com/feed/?lang=en
     tier: Tier 2
     role: investigative
+    reliability: 0.80
+    enabled: true
+
+  # Defense / national security coverage for military politicization
+  - name: Military.com News
+    url: https://www.military.com/rss/news
+    tier: Tier 2
+    role: evidence
     reliability: 0.80
     enabled: true
 
