@@ -49,11 +49,11 @@ sources:
     reliability: 0.87
     enabled: true
 
-  - name: DOJ Press Releases
-    url: https://www.justice.gov/feeds/press-release.xml
+  - name: CBS News Politics
+    url: https://www.cbsnews.com/latest/rss/politics
     tier: Tier 1
     role: evidence
-    reliability: 0.93
+    reliability: 0.87
     enabled: true
 
   # Civil liberties / constitutional / democracy-law discovery
@@ -141,6 +141,13 @@ sources:
     tier: Tier 1
     role: evidence
     reliability: 0.92
+    enabled: false
+
+  - name: DOJ Press Releases
+    url: https://www.justice.gov/feeds/press-release.xml
+    tier: Tier 1
+    role: evidence
+    reliability: 0.93
     enabled: false
 
   - name: Military.com News
