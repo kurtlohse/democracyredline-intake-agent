@@ -11,7 +11,7 @@ from typing import Any
 import yaml
 
 from fetch_feeds import fetch_all_feeds
-from sheets_writer import append_rows_to_sheet
+from sheets_writer import append_rows_to_sheet, get_existing_sheet_values
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT_DIR = ROOT / "output"
@@ -425,38 +425,6 @@ def freshness_bonus(published_at: str) -> int:
     return 0
 
 
-def repeat_prone_watchdog_hard_reject(
-    source_name: str,
-    source_role: str,
-    published_at: str,
-    event_type: str,
-    trigger_hits: dict[str, list[str]],
-    entity_hits: dict[str, list[str]],
-) -> bool:
-    if not is_repeat_prone_watchdog(source_name, source_role):
-        return False
-
-    dt = iso_to_dt(published_at)
-    if dt is None:
-        return True
-
-    age = datetime.now(timezone.utc) - dt
-    soft_age_days = int(RUNTIME_SETTINGS.get("repeat_prone_watchdog_soft_age_days", 10))
-    strong_count = strong_trigger_count(trigger_hits)
-    entity_count = len(entity_hits.get("institutions", [])) + len(entity_hits.get("targets", []))
-
-    if age <= timedelta(days=soft_age_days):
-        return False
-
-    if event_type in {"Court Ruling", "Supreme Court Ruling", "Arrest / Detention", "Executive Order / Agency Action"} and strong_count >= 1:
-        return False
-
-    if event_type == "Court Filing" and (strong_count >= 2 or entity_count >= 3):
-        return False
-
-    return True
-
-
 def admission_decision(
     source_name: str,
     source_role: str,
@@ -478,16 +446,6 @@ def admission_decision(
     if event_definiteness == "Commentary / Preview":
         return "Reject"
 
-    if repeat_prone_watchdog_hard_reject(
-        source_name=source_name,
-        source_role=source_role,
-        published_at=published_at,
-        event_type=event_type,
-        trigger_hits=trigger_hits,
-        entity_hits=entity_hits,
-    ):
-        return "Reject"
-
     if (
         category_fit == "Direct"
         and event_type in CONCRETE_EVENT_TYPES
@@ -499,13 +457,17 @@ def admission_decision(
     if (
         source_role == "evidence"
         and category_fit in {"Direct", "Partial"}
-        and event_type in CONCRETE_EVENT_TYPES
+        and (
+            event_type in CONCRETE_EVENT_TYPES
+            or (primary_signal and strong_count >= 1 and category_fit == "Direct")
+        )
         and (trigger_count >= 1 or strong_count >= 1 or primary_signal)
     ):
         return "Watchlist"
 
     if (
         source_role in {"watchdog", "investigative"}
+        and not repeat_prone_watchdog
         and event_type in CONCRETE_EVENT_TYPES
         and category_fit in {"Direct", "Partial"}
         and (trigger_count >= 1 or strong_count >= 1 or (primary_signal and entity_count >= 2))
@@ -514,18 +476,17 @@ def admission_decision(
 
     if (
         repeat_prone_watchdog
-        and event_type == "Court Filing"
+        and event_type in {"Court Ruling", "Supreme Court Ruling", "Arrest / Detention", "Executive Order / Agency Action"}
         and category_fit == "Direct"
-        and (strong_count >= 2 or (freshness >= 2 and entity_count >= 2))
+        and strong_count >= 1
     ):
         return "Watchlist"
 
     if (
-        source_role in {"watchdog", "investigative"}
-        and not repeat_prone_watchdog
-        and event_type == "Developing / Unconfirmed"
+        repeat_prone_watchdog
+        and event_type == "Court Filing"
         and category_fit == "Direct"
-        and (trigger_count >= 2 or strong_count >= 1)
+        and (strong_count >= 2 or (freshness >= 2 and entity_count >= 2))
     ):
         return "Watchlist"
 
@@ -793,38 +754,20 @@ def make_duplicate_cluster_seed(item: dict[str, str]) -> str:
     return "CLUSTER-" + "-".join(filtered[:3]).upper()
 
 
-def suppress_repeaty_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
-    seen_stems: set[str] = set()
+def suppress_repeaty_rows(
+    rows: list[dict[str, str]],
+    existing_title_stems: set[str],
+) -> list[dict[str, str]]:
+    seen_stems: set[str] = set(existing_title_stems)
     out: list[dict[str, str]] = []
 
     for row in rows:
         stem = title_stem(row.get("title", ""))
         source_name = row.get("source_name", "")
         source_role = row.get("source_role", "")
-        event_type = row.get("event_type", "")
-        published_at = row.get("published_at", "")
-        trigger_keys = row.get("notes", "")
 
-        if stem and is_repeat_prone_watchdog(source_name, source_role):
-            dt = iso_to_dt(published_at)
-            age_bad = False
-            if dt is not None:
-                soft_age_days = int(RUNTIME_SETTINGS.get("repeat_prone_watchdog_soft_age_days", 10))
-                age_bad = (datetime.now(timezone.utc) - dt) > timedelta(days=soft_age_days)
-
-            if stem in seen_stems:
-                continue
-
-            if age_bad and event_type == "Court Filing" and "triggers=" not in trigger_keys:
-                continue
-
-            if age_bad and event_type not in {
-                "Court Ruling",
-                "Supreme Court Ruling",
-                "Arrest / Detention",
-                "Executive Order / Agency Action",
-            }:
-                continue
+        if stem and is_repeat_prone_watchdog(source_name, source_role) and stem in seen_stems:
+            continue
 
         if stem:
             seen_stems.add(stem)
@@ -1054,6 +997,16 @@ def main() -> None:
 
     print(f"Using report window start: {dt_to_iso(report_start_dt)}")
 
+    existing_links, existing_titles = get_existing_sheet_values(
+        worksheet_name="Intake",
+        headers=HEADERS,
+        max_title_rows=500,
+    )
+    existing_title_stems = {title_stem(t) for t in existing_titles if title_stem(t)}
+
+    print(f"Loaded {len(existing_links)} existing links from Intake.")
+    print(f"Loaded {len(existing_title_stems)} existing title stems from Intake.")
+
     items = fetch_all_feeds()
     rows: list[dict[str, str]] = []
 
@@ -1066,10 +1019,20 @@ def main() -> None:
         if row["admission_decision"] == "Reject":
             continue
 
+        link = row.get("link", "").strip()
+        if link and link in existing_links:
+            continue
+
+        if (
+            is_repeat_prone_watchdog(row.get("source_name", ""), row.get("source_role", ""))
+            and title_stem(row.get("title", "")) in existing_title_stems
+        ):
+            continue
+
         rows.append(row)
 
     rows = dedupe_rows_by_link(rows)
-    rows = suppress_repeaty_rows(rows)
+    rows = suppress_repeaty_rows(rows, existing_title_stems)
     refine_duplicate_clusters(rows)
     rows = rows[:max_items]
 
