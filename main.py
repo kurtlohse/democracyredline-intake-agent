@@ -109,6 +109,8 @@ REPEAT_PRONE_WATCHDOGS = {
     "democracy forward",
     "democracy docket",
     "aclu",
+    "brennan center",
+    "states united democracy center",
 }
 
 
@@ -366,6 +368,8 @@ def suggest_category(text: str, primary_signal: str) -> str:
                 "supreme court",
                 "contempt",
                 "violation of court order",
+                "first amendment",
+                "law enforcement accountable",
             ],
         ),
         (
@@ -1165,19 +1169,21 @@ def build_row_from_values(
     prev = existing_row or {}
     notes_value, report_section_value = repair_legacy_notes_and_report_section(prev)
 
+    new_auto_note = auto_notes(
+        src_priority=src_priority,
+        admission=admission,
+        event_type=event_type,
+        category_fit=category_fit,
+        democratic_consequence=democratic_consequence,
+        trigger_hits=trigger_hits,
+        entity_hits=entity_hits,
+        escalation_score=row_score,
+        threat_cluster=threat_cluster,
+        cluster_status=cluster_status,
+    )
+
     if not notes_value or notes_value.startswith("AUTO:"):
-        notes_value = auto_notes(
-            src_priority=src_priority,
-            admission=admission,
-            event_type=event_type,
-            category_fit=category_fit,
-            democratic_consequence=democratic_consequence,
-            trigger_hits=trigger_hits,
-            entity_hits=entity_hits,
-            escalation_score=row_score,
-            threat_cluster=threat_cluster,
-            cluster_status=cluster_status,
-        )
+        notes_value = new_auto_note
 
     row = {
         "date_collected": clean_text(prev.get("date_collected", "")) or datetime.now(timezone.utc).isoformat(),
