@@ -65,14 +65,17 @@ def rescore_rows(existing_rows: list[dict[str, str]]) -> list[dict[str, str]]:
 
         for field in MANUAL_FIELDS:
             if field in old:
-                new_row[field] = clean_text(old.get(field, ""))
+                # Preserve manual notes only if they do NOT look auto-generated.
+                if field == "notes":
+                    existing_notes = clean_text(old.get("notes", ""))
+                    if existing_notes and not existing_notes.startswith("AUTO:"):
+                        new_row["notes"] = existing_notes
+                else:
+                    new_row[field] = clean_text(old.get(field, ""))
 
         if clean_text(old.get("date_collected", "")):
             new_row["date_collected"] = clean_text(old["date_collected"])
 
-        # Extra legacy repair:
-        # If notes is blank and report_section still carries the old AUTO blob,
-        # move it into notes and clear report_section.
         if (
             not clean_text(new_row.get("notes", ""))
             and clean_text(new_row.get("report_section", "")).startswith("AUTO:")
@@ -86,10 +89,6 @@ def rescore_rows(existing_rows: list[dict[str, str]]) -> list[dict[str, str]]:
 
 
 def column_index_to_a1(col_index: int) -> str:
-    """
-    Convert 1-based column index to Sheets column letters.
-    Example: 1 -> A, 26 -> Z, 27 -> AA, 36 -> AJ
-    """
     result = ""
     while col_index > 0:
         col_index, remainder = divmod(col_index - 1, 26)
