@@ -17,13 +17,15 @@ high_priority_sources:
   - democracy forward
   - aclu
   - the intercept
+  - brennan center
+  - states united democracy center
 
 watch_sources:
   - freedom of the press foundation
-  - brennan center
   - brookings
   - just security
-  - states united
+  - v-dem
+  - carnegie endowment
 
 watch_institutions:
   - doj
@@ -50,9 +52,15 @@ watch_institutions:
   - navy
   - air force
   - marine corps
+  - white house
+  - truth social
   - npr
   - pbs
   - voice of america
+  - v-dem
+  - united nations
+  - u.n.
+  - strait of hormuz
 
 watch_targets:
   - journalist
@@ -83,6 +91,11 @@ watch_targets:
   - chief of staff
   - whistleblower
   - inspector general
+  - civilian infrastructure
+  - power plants
+  - bridges
+  - ports
+  - civilization
 
 exclude_if_title_or_summary_contains:
   - opinion
@@ -151,6 +164,10 @@ trigger_groups:
     - legal aid targeted
     - counsel targeted
     - legal representation treated as obstruction
+    - retaliation against law firms
+    - retaliation against lawyers
+    - retaliation against counsel
+    - unconstitutional political retaliation
 
   election_interference:
     - refused to certify
@@ -299,6 +316,12 @@ trigger_groups:
     - no authorization
     - war powers ignored
     - war powers resolution blocked
+    - congress surrendered its role
+    - legislature acting as rubber stamp
+    - rubber stamp
+    - failed to check the executive
+    - failed to restrain the executive
+    - abdicated its role
 
   military_politicization:
     - fired top military leadership
@@ -314,6 +337,98 @@ trigger_groups:
     - top military leadership removed
     - allies framed as adversaries
     - military leadership fired
+
+  war_powers:
+    - war powers
+    - without congressional authorization
+    - without congress approval
+    - congress was not consulted
+    - no authorization from congress
+    - bypassed congress
+    - president ordered strikes
+    - unilateral military action
+    - no vote in congress
+    - congress sidelined on military action
+    - legislature sidelined
+    - blockade announced
+    - naval blockade
+    - airstrikes ordered
+    - military escalation ordered
+
+  civilian_infrastructure_threats:
+    - destroy power plants
+    - destroy bridges
+    - attack civilian infrastructure
+    - target civilian infrastructure
+    - strike power plants
+    - strike bridges
+    - destruction of ports
+    - destruction of infrastructure
+    - threatened civilian infrastructure
+    - collective punishment
+    - whole civilization will die
+    - civilization will die
+    - annihilation threat
+
+  norm_shattering_state_rhetoric:
+    - whole civilization will die
+    - never to be brought back again
+    - evil and madness
+    - wipe out
+    - annihilate
+    - destroy them all
+    - total destruction
+    - not hesitate to destroy
+    - threats against civilization
+    - threats against a whole people
+
+  domestic_spillover:
+    - military against protest
+    - use the military against protesters
+    - suppress dissent
+    - suppress protest
+    - federal agents used to intimidate
+    - intimidate voters
+    - intimidate critics
+    - crackdown on dissent
+    - dissent treated as threat
+    - protest treated as insurgency
+    - domestic military use
+    - national security used against opposition
+
+  congressional_surrender:
+    - congress surrendered its role
+    - congress has surrendered
+    - rubber stamp
+    - acted as rubber stamp
+    - legislature acting as rubber stamp
+    - no meaningful oversight
+    - failed to check the executive
+    - failed to restrain the executive
+    - abdicated its role
+    - constitutional role surrendered
+
+  autocratization_benchmark:
+    - autocratization
+    - unprecedented autocratization
+    - democracy levels fell
+    - democracy backsliding
+    - democratic erosion accelerated
+    - democratic decline
+    - democracy fell to 1965 levels
+    - v-dem
+    - democracy index warning
+    - institutional checks weakened
+    - rapid autocratization
+
+  incapacity_alarm:
+    - 25th amendment
+    - invoke the 25th amendment
+    - cabinet should invoke
+    - former allies called for
+    - unfit for office
+    - mentally unfit
+    - incapacity concerns
 
 signal_fallbacks:
   executive_overreach:
@@ -448,6 +563,39 @@ event_type_patterns:
     - military leadership removed
     - military leadership fired
     - patrolling civilian life
+
+  war_powers_action:
+    - blockade announced
+    - naval blockade
+    - airstrikes ordered
+    - strikes ordered
+    - military escalation ordered
+    - without congressional authorization
+    - unilateral military action
+
+  civilian_infrastructure_threat:
+    - destroy power plants
+    - destroy bridges
+    - target civilian infrastructure
+    - attack civilian infrastructure
+    - threatened civilian infrastructure
+    - whole civilization will die
+
+  institutional_warning:
+    - v-dem
+    - democracy backsliding
+    - autocratization
+    - democracy levels fell
+    - democratic decline
+    - congress surrendered its role
+    - rubber stamp
+
+  domestic_spillover_warning:
+    - military against protest
+    - suppress dissent
+    - federal agents used to intimidate
+    - intimidate voters
+    - crackdown on dissent
 
   developing:
     - considering action
