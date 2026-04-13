@@ -92,6 +92,20 @@ sources:
     reliability: 0.80
     enabled: true
 
+  - name: Brennan Center
+    url: https://www.brennancenter.org/rss.xml
+    tier: Tier 2
+    role: watchdog
+    reliability: 0.86
+    enabled: true
+
+  - name: States United Democracy Center
+    url: https://statesuniteddemocracy.org/feed/
+    tier: Tier 2
+    role: watchdog
+    reliability: 0.84
+    enabled: true
+
   # Investigative / accountability
   - name: The Intercept
     url: https://theintercept.com/feed/?lang=en
@@ -100,7 +114,7 @@ sources:
     reliability: 0.80
     enabled: true
 
-  # Disabled / unstable / low-value for now
+  # Disabled / unstable / lower priority for now
   - name: Freedom of the Press Foundation
     url: https://freedom.press/feed/
     tier: Tier 2
