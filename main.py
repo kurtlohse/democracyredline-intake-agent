@@ -304,9 +304,37 @@ def suggest_primary_signal(text: str) -> str:
     return ""
 
 
+def legal_retaliation_fallback_signal(text: str, category: str, source_name: str) -> str:
+    if category != "Political Targeting / Weaponization of Justice":
+        return ""
+
+    legal_retaliation_terms = [
+        "political retaliation",
+        "retaliation against law firms",
+        "retaliation against lawyers",
+        "retaliation against counsel",
+        "unconstitutional political retaliation",
+        "sanctions against attorneys",
+        "sanctions against lawyers",
+        "targeted attorneys",
+        "targeted lawyers",
+        "law firms",
+        "election lawyers",
+        "perkins coie",
+    ]
+    if any(compile_phrase_pattern(t).search(text) for t in legal_retaliation_terms):
+        return "Legal retaliation"
+
+    if "campaign legal center" in normalize(source_name) and any(
+        compile_phrase_pattern(t).search(text)
+        for t in ["department of justice", "doj", "law firms", "lawyers", "counsel"]
+    ):
+        return "Legal retaliation"
+
+    return ""
+
+
 def suggest_category(text: str, primary_signal: str) -> str:
-    # Prefer legal retaliation before election language, so law-firm targeting
-    # stories do not get mis-bucketed into Election Integrity.
     if any(
         compile_phrase_pattern(k).search(text)
         for k in [
@@ -789,6 +817,8 @@ def compute_row_escalation_score(
     entity_hits: dict[str, list[str]],
     event_definiteness: str,
     published_at: str,
+    category: str,
+    category_fit: str,
 ) -> int:
     score = 0
 
@@ -839,6 +869,22 @@ def compute_row_escalation_score(
         if key in trigger_hits:
             score += 2
 
+    if (
+        category == "Political Targeting / Weaponization of Justice"
+        and category_fit == "Direct"
+        and (
+            primary_signal == "Legal retaliation"
+            or "legal_retaliation" in trigger_hits
+            or any(
+                compile_phrase_pattern(t).search(
+                    combined_text_from_fields("", "", "")  # placeholder never used
+                )
+                for t in []
+            )
+        )
+    ):
+        score += 3
+
     score += freshness_bonus(published_at)
 
     if is_repeat_prone_watchdog(source_name, source_role):
@@ -847,9 +893,23 @@ def compute_row_escalation_score(
     return max(score, 0)
 
 
-def suggest_score_impact_candidate(escalation_score: int, admission: str, primary_signal: str) -> str:
+def suggest_score_impact_candidate(
+    escalation_score: int,
+    admission: str,
+    primary_signal: str,
+    category: str,
+    category_fit: str,
+) -> str:
     if admission == "Reject":
         return "Unlikely"
+
+    if (
+        category == "Political Targeting / Weaponization of Justice"
+        and category_fit == "Direct"
+        and primary_signal == "Legal retaliation"
+    ):
+        return "Possible" if escalation_score < 10 else "Likely"
+
     if escalation_score >= 10:
         return "Likely"
     if escalation_score >= 5 and primary_signal:
@@ -863,8 +923,20 @@ def suggest_editor_priority(
     escalation_score: int,
     score_impact_candidate: str,
     trigger_hits: dict[str, list[str]],
+    category: str,
+    primary_signal: str,
+    category_fit: str,
 ) -> str:
     strong_count = strong_trigger_count(trigger_hits)
+
+    if (
+        category == "Political Targeting / Weaponization of Justice"
+        and category_fit == "Direct"
+        and primary_signal == "Legal retaliation"
+    ):
+        if escalation_score >= 8:
+            return "High"
+        return "Medium"
 
     if score_impact_candidate == "Unlikely":
         return "Medium" if strong_count >= 2 else "Low"
@@ -981,8 +1053,13 @@ def build_row_from_values(
     exclusion_terms = exclusion_hits(text)
     trigger_hits = trigger_group_hits(text)
     entity_hits = watch_entity_hits(text)
+
     primary_signal = suggest_primary_signal(text)
     category = suggest_category(text, primary_signal)
+
+    if not primary_signal:
+        primary_signal = legal_retaliation_fallback_signal(text, category, source_name)
+
     confidence = confidence_from_reliability(source_reliability)
     evidence_strength = evidence_strength_from_reliability(source_reliability)
     src_priority = source_priority(source_name, source_role)
@@ -1041,17 +1118,24 @@ def build_row_from_values(
         entity_hits=entity_hits,
         event_definiteness=event_definiteness,
         published_at=published_at,
+        category=category,
+        category_fit=category_fit,
     )
 
     score_impact_candidate = suggest_score_impact_candidate(
         escalation_score=row_score,
         admission=admission,
         primary_signal=primary_signal,
+        category=category,
+        category_fit=category_fit,
     )
     editor_priority = suggest_editor_priority(
         escalation_score=row_score,
         score_impact_candidate=score_impact_candidate,
         trigger_hits=trigger_hits,
+        category=category,
+        primary_signal=primary_signal,
+        category_fit=category_fit,
     )
 
     include_in_report = "Maybe" if admission != "Reject" else "No"
@@ -1064,7 +1148,14 @@ def build_row_from_values(
     )
 
     prev = existing_row or {}
+
+    report_section_value = clean_text(prev.get("report_section", ""))
     notes_value = clean_text(prev.get("notes", ""))
+
+    if not notes_value and report_section_value.startswith("AUTO:"):
+        notes_value = report_section_value
+        report_section_value = ""
+
     if not notes_value or notes_value.startswith("AUTO:"):
         notes_value = auto_notes(
             src_priority=src_priority,
@@ -1078,6 +1169,9 @@ def build_row_from_values(
             threat_cluster=threat_cluster,
             cluster_status=cluster_status,
         )
+
+    if report_section_value.startswith("AUTO:"):
+        report_section_value = ""
 
     row = {
         "date_collected": clean_text(prev.get("date_collected", "")) or datetime.now(timezone.utc).isoformat(),
@@ -1110,7 +1204,7 @@ def build_row_from_values(
         "cluster_escalation_score": str(cluster_score) if threat_cluster else "",
         "governing_function": governing_function,
         "oversight_failure_flag": oversight_failure_flag,
-        "report_section": clean_text(prev.get("report_section", "")),
+        "report_section": report_section_value,
         "duplicate_cluster": "",
         "final_disposition": clean_text(prev.get("final_disposition", "")),
         "reviewed_by": clean_text(prev.get("reviewed_by", "")),
