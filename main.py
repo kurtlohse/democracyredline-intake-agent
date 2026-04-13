@@ -15,7 +15,7 @@ from sheets_writer import append_rows_to_sheet, get_existing_sheet_values
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT_DIR = ROOT / "output"
-OUTPUT_CSV = OUTPUT_DIR / "monthly_intake.csv"
+OUTPUT_CSV = ROOT / "output" / "monthly_intake.csv"
 RULES_PATH = ROOT / "config" / "agent_priority_rules.yaml"
 RUNTIME_SETTINGS_PATH = ROOT / "config" / "runtime_settings.yaml"
 
@@ -57,39 +57,6 @@ HEADERS = [
     "reviewed_on",
     "notes",
 ]
-
-DERIVED_FIELDS = {
-    "democracy_redline_category",
-    "primary_signal",
-    "secondary_signal",
-    "confidence",
-    "editor_priority",
-    "admission_decision",
-    "event_type",
-    "category_fit",
-    "event_definiteness",
-    "democratic_consequence",
-    "needs_manual_review",
-    "evidence_strength",
-    "month_assigned",
-    "include_in_report",
-    "score_impact_candidate",
-    "threat_cluster",
-    "cluster_status",
-    "cluster_escalation_score",
-    "governing_function",
-    "oversight_failure_flag",
-    "report_section",
-    "duplicate_cluster",
-}
-
-MANUAL_FIELDS = {
-    "review_status",
-    "final_disposition",
-    "reviewed_by",
-    "reviewed_on",
-    "notes",
-}
 
 CONCRETE_EVENT_TYPES = {
     "Court Filing",
@@ -239,6 +206,10 @@ def exclusion_hits(text: str) -> list[str]:
     return matched_terms(text, RULES.get("exclude_if_title_or_summary_contains", []))
 
 
+def commentary_format_hits(text: str) -> list[str]:
+    return matched_terms(text, RULES.get("commentary_format_terms", []))
+
+
 def source_priority(source_name: str, source_role: str) -> str:
     name = normalize(source_name)
     if matched_terms(name, RULES.get("top_priority_sources", [])):
@@ -268,6 +239,7 @@ def strong_trigger_count(trigger_hits: dict[str, list[str]]) -> int:
         "domestic_spillover",
         "congressional_surrender",
         "autocratization_benchmark",
+        "civil_society_crackdown",
     }
     return sum(1 for k in trigger_hits if k in strong_groups)
 
@@ -425,6 +397,8 @@ def suggest_primary_signal(text: str, trigger_hits: dict[str, list[str]]) -> str
         return "Domestic spillover"
     if "norm_shattering_state_rhetoric" in trigger_hits:
         return "Norm-shattering state rhetoric"
+    if "civil_society_crackdown" in trigger_hits:
+        return "Civil society crackdown"
 
     mapping = [
         ("Election interference", "election_interference"),
@@ -461,6 +435,9 @@ def suggest_category(text: str, primary_signal: str, trigger_hits: dict[str, lis
         or "congressional_surrender" in trigger_hits
     ):
         return "War Powers, Executive Militarization & Democratic Spillover"
+
+    if "civil_society_crackdown" in trigger_hits:
+        return "Civil Society & Associational Freedom"
 
     category_rules: list[tuple[str, list[str]]] = [
         (
@@ -519,6 +496,8 @@ def suggest_category(text: str, primary_signal: str, trigger_hits: dict[str, lis
                 "voter roll",
                 "peaceful transfer",
                 "voter intimidation",
+                "election official",
+                "secretary of state",
             ],
         ),
         (
@@ -527,11 +506,11 @@ def suggest_category(text: str, primary_signal: str, trigger_hits: dict[str, lis
         ),
         (
             "Civil Society & Associational Freedom",
-            ["protest", "assembly", "civil society", "speech restrictions"],
+            ["protest", "assembly", "civil society", "speech restrictions", "advocacy group", "ngo", "nonprofit"],
         ),
         (
             "Institutional Checks & Anti-Corruption",
-            ["inspector general", "ethics violation", "conflict of interest", "corruption", "bribery", "watchdog removed", "oversight blocked", "war powers", "subpoena defied"],
+            ["inspector general", "ethics violation", "conflict of interest", "corruption", "bribery", "watchdog removed", "oversight blocked", "war powers", "subpoena defied", "rubber stamp"],
         ),
         (
             "Military & Intelligence Neutrality",
@@ -560,6 +539,7 @@ def suggest_category(text: str, primary_signal: str, trigger_hits: dict[str, lis
         "Domestic spillover": "War Powers, Executive Militarization & Democratic Spillover",
         "Autocratization benchmark": "Institutional Checks & Anti-Corruption",
         "Norm-shattering state rhetoric": "War Powers, Executive Militarization & Democratic Spillover",
+        "Civil society crackdown": "Civil Society & Associational Freedom",
     }
     return fallback_map.get(primary_signal, "")
 
@@ -593,6 +573,8 @@ def classify_event_type(text: str, exclusion_terms: list[str]) -> str:
         return "Institutional Warning / Benchmark"
     if any(compile_phrase_pattern(t).search(text) for t in patterns.get("domestic_spillover_warning", [])):
         return "Domestic Spillover Warning"
+    if any(compile_phrase_pattern(t).search(text) for t in patterns.get("civil_society_action", [])):
+        return "Civil Society Restriction / Crackdown"
     if exclusion_terms:
         return "Commentary / Preview"
     if any(compile_phrase_pattern(t).search(text) for t in patterns.get("developing", [])):
@@ -612,6 +594,7 @@ def classify_event_definiteness(event_type: str) -> str:
         "Military / Security Deployment",
         "War Powers / Military Escalation",
         "Civilian Infrastructure Threat",
+        "Civil Society Restriction / Crackdown",
     }:
         return "Confirmed Action"
     if event_type == "Court Filing":
@@ -641,6 +624,56 @@ def classify_category_fit(
     if category or primary_signal or trigger_count >= 1:
         return "Partial"
     return "Weak"
+
+
+def is_commentary_like(
+    event_type: str,
+    commentary_hits: list[str],
+    trigger_hits: dict[str, list[str]],
+    text: str,
+) -> bool:
+    if event_type != "General Context":
+        return False
+    if not commentary_hits:
+        return False
+
+    concrete_groups = {
+        "court_defiance",
+        "legal_retaliation",
+        "election_interference",
+        "press_intimidation",
+        "due_process",
+        "war_powers",
+        "civilian_infrastructure_threats",
+        "domestic_spillover",
+        "congressional_surrender",
+        "civil_society_crackdown",
+        "military_politicization",
+    }
+    if any(group in trigger_hits for group in concrete_groups):
+        return False
+
+    concrete_text_terms = [
+        "judge",
+        "court",
+        "order",
+        "filed",
+        "signed",
+        "blocked",
+        "ruled",
+        "deported",
+        "detained",
+        "announced",
+        "fired",
+        "removed",
+        "deployed",
+        "blockade",
+        "airstrikes",
+    ]
+    if any(compile_phrase_pattern(term).search(text) for term in concrete_text_terms):
+        return False
+
+    return True
 
 
 def promote_event_type_and_definiteness(
@@ -699,6 +732,9 @@ def promote_event_type_and_definiteness(
     if category_fit in {"Direct", "Partial"} and "domestic_spillover" in trigger_hits:
         return "Domestic Spillover Warning", "Documented Warning"
 
+    if category_fit in {"Direct", "Partial"} and "civil_society_crackdown" in trigger_hits:
+        return "Civil Society Restriction / Crackdown", "Confirmed Action"
+
     return event_type, event_definiteness
 
 
@@ -756,12 +792,16 @@ def admission_decision(
     published_at: str,
     democracy_spillover_score: int,
     benchmark_deterioration_event: str,
+    commentary_like: bool,
 ) -> str:
     trigger_count = len(trigger_hits)
     strong_count = strong_trigger_count(trigger_hits)
     entity_count = len(entity_hits.get("institutions", [])) + len(entity_hits.get("targets", []))
     repeat_prone_watchdog = is_repeat_prone_watchdog(source_name, source_role)
     freshness = freshness_bonus(published_at)
+
+    if commentary_like:
+        return "Reject"
 
     if event_definiteness == "Commentary / Preview":
         return "Reject"
@@ -863,6 +903,8 @@ def determine_governing_function(
     if category == "War Powers, Executive Militarization & Democratic Spillover":
         functions.add("Legislative Oversight")
         functions.add("Executive Constraint")
+    if category == "Civil Society & Associational Freedom":
+        functions.add("Civil Liberties Protection")
 
     if "oversight_failure" in trigger_hits or "congressional_surrender" in trigger_hits or "war_powers" in trigger_hits:
         functions.add("Legislative Oversight")
@@ -880,6 +922,8 @@ def determine_governing_function(
         functions.add("Lawful Force")
     if "legal_retaliation" in trigger_hits:
         functions.add("Executive Constraint")
+    if "civil_society_crackdown" in trigger_hits:
+        functions.add("Civil Liberties Protection")
 
     if not functions:
         return "Multiple" if len(trigger_hits) >= 2 else "Executive Constraint"
@@ -922,6 +966,8 @@ def determine_threat_cluster(
         return "FOREIGN_CONFLICT_DOMESTIC_SPILLOVER_2026"
     if "incapacity_alarm" in trigger_hits and "norm_shattering_state_rhetoric" in trigger_hits:
         return "EXECUTIVE_CAPACITY_ALARM_2026"
+    if "civil_society_crackdown" in trigger_hits:
+        return "CIVIL_SOCIETY_CRACKDOWN_2026"
     if primary_signal == "Executive overreach" and category == "Institutional Checks & Anti-Corruption":
         return "EXECUTIVE_OVERSIGHT_EROSION_2026"
     return ""
@@ -938,7 +984,7 @@ def compute_cluster_escalation_score(
 ) -> int:
     score = 0
 
-    if event_type in {"Court Ruling", "Supreme Court Ruling", "Arrest / Detention", "Executive Order / Agency Action", "Military / Security Deployment", "War Powers / Military Escalation", "Civilian Infrastructure Threat"}:
+    if event_type in {"Court Ruling", "Supreme Court Ruling", "Arrest / Detention", "Executive Order / Agency Action", "Military / Security Deployment", "War Powers / Military Escalation", "Civilian Infrastructure Threat", "Civil Society Restriction / Crackdown"}:
         score += 3
     elif event_type == "Court Filing":
         score += 2
@@ -983,6 +1029,7 @@ def compute_cluster_escalation_score(
         "domestic_spillover",
         "congressional_surrender",
         "autocratization_benchmark",
+        "civil_society_crackdown",
     ):
         if key in trigger_hits:
             score += 2
@@ -1072,6 +1119,7 @@ def compute_row_escalation_score(
         "congressional_surrender",
         "autocratization_benchmark",
         "norm_shattering_state_rhetoric",
+        "civil_society_crackdown",
     ):
         if key in trigger_hits:
             score += 2
@@ -1102,6 +1150,7 @@ def suggest_score_impact_candidate(
     source_role: str,
     democracy_spillover_score: int,
     benchmark_deterioration_event: str,
+    event_type: str,
 ) -> str:
     if admission == "Reject":
         return "Unlikely"
@@ -1121,6 +1170,14 @@ def suggest_score_impact_candidate(
     ):
         return "Likely" if escalation_score >= 8 else "Possible"
 
+    if (
+        admission == "Main Intake"
+        and event_type == "Court Filing"
+        and category_fit == "Direct"
+        and escalation_score < 10
+    ):
+        return "Possible"
+
     if escalation_score >= 10:
         return "Likely"
     if escalation_score >= 5 and primary_signal:
@@ -1139,6 +1196,8 @@ def suggest_editor_priority(
     category_fit: str,
     democracy_spillover_score: int,
     benchmark_deterioration_event: str,
+    admission: str,
+    event_type: str,
 ) -> str:
     strong_count = strong_trigger_count(trigger_hits)
 
@@ -1157,6 +1216,14 @@ def suggest_editor_priority(
     ):
         if escalation_score >= 8:
             return "High"
+        return "Medium"
+
+    if (
+        admission == "Main Intake"
+        and event_type == "Court Filing"
+        and category_fit == "Direct"
+        and escalation_score < 8
+    ):
         return "Medium"
 
     if score_impact_candidate == "Unlikely":
@@ -1291,7 +1358,7 @@ def auto_notes(
     if cluster_status:
         parts.append(f"cluster_status={cluster_status}")
     if trigger_hits:
-        parts.append("triggers=" + ", ".join(list(trigger_hits.keys())[:4]))
+        parts.append("triggers=" + ", ".join(list(trigger_hits.keys())[:5]))
     wh = entity_hits.get("institutions", []) + entity_hits.get("targets", [])
     if wh:
         parts.append("watch_hits=" + ", ".join(wh[:4]))
@@ -1315,6 +1382,7 @@ def build_row_from_values(
     exclusion_terms = exclusion_hits(text)
     trigger_hits = trigger_group_hits(text)
     entity_hits = watch_entity_hits(text)
+    commentary_hits = commentary_format_hits(text)
     confidence = confidence_from_reliability(source_reliability)
     evidence_strength = evidence_strength_from_reliability(source_reliability)
     src_priority = source_priority(source_name, source_role)
@@ -1325,6 +1393,13 @@ def build_row_from_values(
     event_type = classify_event_type(text, exclusion_terms)
     event_definiteness = classify_event_definiteness(event_type)
     category_fit = classify_category_fit(category, primary_signal, trigger_hits, entity_hits)
+
+    commentary_like = is_commentary_like(
+        event_type=event_type,
+        commentary_hits=commentary_hits,
+        trigger_hits=trigger_hits,
+        text=text,
+    )
 
     event_type, event_definiteness = promote_event_type_and_definiteness(
         source_role=source_role,
@@ -1360,6 +1435,7 @@ def build_row_from_values(
         published_at=published_at,
         democracy_spillover_score=democracy_spillover_score,
         benchmark_deterioration_event=benchmark_deterioration_event,
+        commentary_like=commentary_like,
     )
 
     oversight_failure_flag = determine_oversight_failure_flag(trigger_hits)
@@ -1400,6 +1476,7 @@ def build_row_from_values(
         source_role=source_role,
         democracy_spillover_score=democracy_spillover_score,
         benchmark_deterioration_event=benchmark_deterioration_event,
+        event_type=event_type,
     )
     editor_priority = suggest_editor_priority(
         escalation_score=row_score,
@@ -1410,6 +1487,8 @@ def build_row_from_values(
         category_fit=category_fit,
         democracy_spillover_score=democracy_spillover_score,
         benchmark_deterioration_event=benchmark_deterioration_event,
+        admission=admission,
+        event_type=event_type,
     )
 
     include_in_report = "Maybe" if admission != "Reject" else "No"
