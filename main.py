@@ -270,15 +270,61 @@ def is_repeat_prone_watchdog(source_name: str, source_role: str) -> bool:
 def title_stem(title: str) -> str:
     words = re.findall(r"[a-z0-9]+", normalize(title))
     stopwords = {
-        "the", "a", "an", "and", "or", "of", "to", "in", "for", "on", "with",
-        "after", "over", "under", "at", "by", "from", "into", "about", "amid",
-        "trump", "us", "u", "s",
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "of",
+        "to",
+        "in",
+        "for",
+        "on",
+        "with",
+        "after",
+        "over",
+        "under",
+        "at",
+        "by",
+        "from",
+        "into",
+        "about",
+        "amid",
+        "trump",
+        "us",
+        "u",
+        "s",
     }
     filtered = [w for w in words if w not in stopwords and len(w) > 2]
     return " ".join(filtered[:8])
 
 
+def detect_legal_retaliation(text: str) -> bool:
+    phrases = [
+        "legal retaliation",
+        "political retaliation",
+        "retaliation against law firms",
+        "retaliation against lawyers",
+        "retaliation against counsel",
+        "retaliation against attorneys",
+        "law firms",
+        "law firm",
+        "perkins coie",
+        "targeted attorneys",
+        "targeted lawyers",
+        "targeted counsel",
+        "sanctions against attorneys",
+        "sanctions against lawyers",
+        "sanctions against counsel",
+        "unconstitutional political retaliation",
+    ]
+    return any(compile_phrase_pattern(p).search(text) for p in phrases)
+
+
 def suggest_primary_signal(text: str) -> str:
+    if detect_legal_retaliation(text):
+        return "Legal retaliation"
+
     mapping = [
         ("Election interference", "election_interference"),
         ("Court defiance", "court_defiance"),
@@ -304,52 +350,8 @@ def suggest_primary_signal(text: str) -> str:
     return ""
 
 
-def legal_retaliation_fallback_signal(text: str, category: str, source_name: str) -> str:
-    if category != "Political Targeting / Weaponization of Justice":
-        return ""
-
-    legal_retaliation_terms = [
-        "political retaliation",
-        "retaliation against law firms",
-        "retaliation against lawyers",
-        "retaliation against counsel",
-        "unconstitutional political retaliation",
-        "sanctions against attorneys",
-        "sanctions against lawyers",
-        "targeted attorneys",
-        "targeted lawyers",
-        "law firms",
-        "election lawyers",
-        "perkins coie",
-    ]
-    if any(compile_phrase_pattern(t).search(text) for t in legal_retaliation_terms):
-        return "Legal retaliation"
-
-    if "campaign legal center" in normalize(source_name) and any(
-        compile_phrase_pattern(t).search(text)
-        for t in ["department of justice", "doj", "law firms", "lawyers", "counsel"]
-    ):
-        return "Legal retaliation"
-
-    return ""
-
-
 def suggest_category(text: str, primary_signal: str) -> str:
-    if any(
-        compile_phrase_pattern(k).search(text)
-        for k in [
-            "sanctions against attorneys",
-            "sanctions against lawyers",
-            "targeted attorneys",
-            "retaliated against lawyers",
-            "political retaliation",
-            "retaliation against law firms",
-            "retaliation against lawyers",
-            "retaliation against counsel",
-            "retaliation against firms",
-            "unconstitutional political retaliation",
-        ]
-    ):
+    if detect_legal_retaliation(text):
         return "Political Targeting / Weaponization of Justice"
 
     category_rules: list[tuple[str, list[str]]] = [
@@ -817,8 +819,6 @@ def compute_row_escalation_score(
     entity_hits: dict[str, list[str]],
     event_definiteness: str,
     published_at: str,
-    category: str,
-    category_fit: str,
 ) -> int:
     score = 0
 
@@ -869,21 +869,8 @@ def compute_row_escalation_score(
         if key in trigger_hits:
             score += 2
 
-    if (
-        category == "Political Targeting / Weaponization of Justice"
-        and category_fit == "Direct"
-        and (
-            primary_signal == "Legal retaliation"
-            or "legal_retaliation" in trigger_hits
-            or any(
-                compile_phrase_pattern(t).search(
-                    combined_text_from_fields("", "", "")  # placeholder never used
-                )
-                for t in []
-            )
-        )
-    ):
-        score += 3
+    if primary_signal == "Legal retaliation":
+        score += 2
 
     score += freshness_bonus(published_at)
 
@@ -899,6 +886,7 @@ def suggest_score_impact_candidate(
     primary_signal: str,
     category: str,
     category_fit: str,
+    source_role: str,
 ) -> str:
     if admission == "Reject":
         return "Unlikely"
@@ -908,7 +896,7 @@ def suggest_score_impact_candidate(
         and category_fit == "Direct"
         and primary_signal == "Legal retaliation"
     ):
-        return "Possible" if escalation_score < 10 else "Likely"
+        return "Likely" if escalation_score >= 8 else "Possible"
 
     if escalation_score >= 10:
         return "Likely"
@@ -972,9 +960,30 @@ def make_duplicate_cluster_seed(item: dict[str, str]) -> str:
     title = normalize(item.get("title", ""))
     words = re.findall(r"[a-z0-9]+", title)
     stopwords = {
-        "the", "a", "an", "and", "or", "of", "to", "in", "for", "on", "with",
-        "after", "over", "under", "at", "by", "from", "into", "about", "amid",
-        "trump", "us", "u", "s",
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "of",
+        "to",
+        "in",
+        "for",
+        "on",
+        "with",
+        "after",
+        "over",
+        "under",
+        "at",
+        "by",
+        "from",
+        "into",
+        "about",
+        "amid",
+        "trump",
+        "us",
+        "u",
+        "s",
     }
     filtered = [w for w in words if w not in stopwords and len(w) > 2]
     if not filtered:
@@ -1002,6 +1011,18 @@ def suppress_repeaty_rows(
         out.append(row)
 
     return out
+
+
+def repair_legacy_notes_and_report_section(existing_row: dict[str, str] | None) -> tuple[str, str]:
+    prev = existing_row or {}
+    notes_value = clean_text(prev.get("notes", ""))
+    report_section_value = clean_text(prev.get("report_section", ""))
+
+    if not notes_value and report_section_value.startswith("AUTO:"):
+        notes_value = report_section_value
+        report_section_value = ""
+
+    return notes_value, report_section_value
 
 
 def auto_notes(
@@ -1053,13 +1074,8 @@ def build_row_from_values(
     exclusion_terms = exclusion_hits(text)
     trigger_hits = trigger_group_hits(text)
     entity_hits = watch_entity_hits(text)
-
     primary_signal = suggest_primary_signal(text)
     category = suggest_category(text, primary_signal)
-
-    if not primary_signal:
-        primary_signal = legal_retaliation_fallback_signal(text, category, source_name)
-
     confidence = confidence_from_reliability(source_reliability)
     evidence_strength = evidence_strength_from_reliability(source_reliability)
     src_priority = source_priority(source_name, source_role)
@@ -1118,8 +1134,6 @@ def build_row_from_values(
         entity_hits=entity_hits,
         event_definiteness=event_definiteness,
         published_at=published_at,
-        category=category,
-        category_fit=category_fit,
     )
 
     score_impact_candidate = suggest_score_impact_candidate(
@@ -1128,6 +1142,7 @@ def build_row_from_values(
         primary_signal=primary_signal,
         category=category,
         category_fit=category_fit,
+        source_role=source_role,
     )
     editor_priority = suggest_editor_priority(
         escalation_score=row_score,
@@ -1148,13 +1163,7 @@ def build_row_from_values(
     )
 
     prev = existing_row or {}
-
-    report_section_value = clean_text(prev.get("report_section", ""))
-    notes_value = clean_text(prev.get("notes", ""))
-
-    if not notes_value and report_section_value.startswith("AUTO:"):
-        notes_value = report_section_value
-        report_section_value = ""
+    notes_value, report_section_value = repair_legacy_notes_and_report_section(prev)
 
     if not notes_value or notes_value.startswith("AUTO:"):
         notes_value = auto_notes(
@@ -1169,9 +1178,6 @@ def build_row_from_values(
             threat_cluster=threat_cluster,
             cluster_status=cluster_status,
         )
-
-    if report_section_value.startswith("AUTO:"):
-        report_section_value = ""
 
     row = {
         "date_collected": clean_text(prev.get("date_collected", "")) or datetime.now(timezone.utc).isoformat(),
