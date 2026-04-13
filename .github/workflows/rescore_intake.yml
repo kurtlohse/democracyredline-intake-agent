@@ -1,0 +1,68 @@
+name: Rescore Intake Sheet
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run in preview mode only? true = no sheet changes, false = write rescored values back to Intake"
+        required: true
+        default: "true"
+
+jobs:
+  rescore-intake:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Show repo files
+        run: |
+          pwd
+          ls -la
+          echo "Config folder:"
+          ls -la config || true
+
+      - name: Create output folder
+        run: mkdir -p output
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run rescore preview or writeback
+        env:
+          GOOGLE_SHEETS_SPREADSHEET_ID: ${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          python rescore_intake.py
+
+      - name: List output files
+        if: always()
+        run: |
+          echo "Output folder contents:"
+          ls -la output || true
+
+      - name: Upload output artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rescore-output
+          path: output/
