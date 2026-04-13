@@ -162,7 +162,7 @@ def compile_phrase_pattern(term: str) -> re.Pattern[str]:
     parts = [re.escape(p) for p in term.split() if p]
     if not parts:
         return re.compile(r"$^")
-    joined = r"[\s\-/,:;()]+".join(parts)
+    joined = r"[\s\-/,:;()']+".join(parts)
     return re.compile(rf"(?<!\w){joined}(?!\w)", re.IGNORECASE)
 
 
@@ -217,6 +217,8 @@ def strong_trigger_count(trigger_hits: dict[str, list[str]]) -> int:
         "due_process",
         "institutional_capture",
         "oversight_failure",
+        "military_politicization",
+        "legal_retaliation",
     }
     return sum(1 for k in trigger_hits if k in strong_groups)
 
@@ -243,10 +245,12 @@ def suggest_primary_signal(text: str) -> str:
     mapping = [
         ("Election interference", "election_interference"),
         ("Court defiance", "court_defiance"),
+        ("Legal retaliation", "legal_retaliation"),
         ("Weaponized justice", "weaponized_justice"),
         ("Press intimidation", "press_intimidation"),
         ("Civil liberties erosion", "due_process"),
         ("Militarization", "coercive_state_power"),
+        ("Military politicization", "military_politicization"),
         ("Institutional capture", "institutional_capture"),
         ("Corruption", "corruption"),
         ("Executive overreach", "oversight_failure"),
@@ -267,15 +271,15 @@ def suggest_category(text: str, primary_signal: str) -> str:
     category_rules: list[tuple[str, list[str]]] = [
         (
             "Election Integrity & Peaceful Transfer",
-            ["election", "ballot", "vote count", "certification", "elector", "voter roll", "peaceful transfer"],
+            ["election", "ballot", "vote count", "certification", "elector", "voter roll", "peaceful transfer", "voter intimidation"],
         ),
         (
             "Rule of Law & Court Compliance",
-            ["court order", "injunction", "ignored ruling", "defied court", "judicial order", "supreme court", "contempt"],
+            ["court order", "injunction", "ignored ruling", "defied court", "judicial order", "supreme court", "contempt", "violation of court order"],
         ),
         (
             "Habeas Corpus & Due Process",
-            ["habeas", "due process", "detention", "deportation", "rendition", "indefinite detention"],
+            ["habeas", "due process", "detention", "deportation", "rendition", "indefinite detention", "third country"],
         ),
         (
             "Coercive State Power & Policing Norms",
@@ -283,11 +287,11 @@ def suggest_category(text: str, primary_signal: str) -> str:
         ),
         (
             "Political Targeting / Weaponization of Justice",
-            ["retaliatory investigation", "political prosecution", "selective prosecution", "justice department targeted", "grand jury against opponent"],
+            ["retaliatory investigation", "political prosecution", "selective prosecution", "justice department targeted", "grand jury against opponent", "sanctions against attorneys"],
         ),
         (
             "Press Freedom & Information Control",
-            ["journalist", "newsroom", "press access", "media threat", "reporter arrested", "journalist barred"],
+            ["journalist", "newsroom", "press access", "media threat", "reporter arrested", "journalist barred", "defunding npr", "defunding pbs", "reporters access"],
         ),
         (
             "Civil Society & Associational Freedom",
@@ -299,7 +303,7 @@ def suggest_category(text: str, primary_signal: str) -> str:
         ),
         (
             "Military & Intelligence Neutrality",
-            ["military loyalty", "politicized intelligence", "domestic troop use", "armed forces", "intelligence agency", "chain of command"],
+            ["military loyalty", "politicized intelligence", "domestic troop use", "armed forces", "intelligence agency", "chain of command", "military leadership"],
         ),
     ]
     for category, keywords in category_rules:
@@ -309,11 +313,13 @@ def suggest_category(text: str, primary_signal: str) -> str:
     fallback_map = {
         "Election interference": "Election Integrity & Peaceful Transfer",
         "Court defiance": "Rule of Law & Court Compliance",
+        "Legal retaliation": "Political Targeting / Weaponization of Justice",
         "Weaponized justice": "Political Targeting / Weaponization of Justice",
         "Civil liberties erosion": "Habeas Corpus & Due Process",
         "Press intimidation": "Press Freedom & Information Control",
         "Corruption": "Institutional Checks & Anti-Corruption",
         "Militarization": "Coercive State Power & Policing Norms",
+        "Military politicization": "Military & Intelligence Neutrality",
         "Institutional capture": "Institutional Checks & Anti-Corruption",
         "Executive overreach": "Institutional Checks & Anti-Corruption",
     }
@@ -344,6 +350,66 @@ def classify_event_type(text: str, exclusion_terms: list[str]) -> str:
     if any(compile_phrase_pattern(t).search(text) for t in RULES.get("event_type_patterns", {}).get("developing", [])):
         return "Developing / Unconfirmed"
     return "General Context"
+
+
+def promote_event_type_and_definiteness(
+    source_role: str,
+    event_type: str,
+    event_definiteness: str,
+    category_fit: str,
+    trigger_hits: dict[str, list[str]],
+    primary_signal: str,
+    text: str,
+) -> tuple[str, str]:
+    if source_role != "evidence":
+        return event_type, event_definiteness
+
+    if event_type != "General Context":
+        return event_type, event_definiteness
+
+    strong_count = strong_trigger_count(trigger_hits)
+
+    if (
+        category_fit == "Direct"
+        and (
+            "court_defiance" in trigger_hits
+            or ("press_intimidation" in trigger_hits and ("judge" in text or "court" in text))
+            or ("legal_retaliation" in trigger_hits and ("judge" in text or "court" in text))
+        )
+        and ("judge" in text or "court" in text or "ruled" in text or "order" in text or "violation" in text)
+    ):
+        return "Court Ruling", "Confirmed Action"
+
+    if (
+        category_fit == "Direct"
+        and ("due_process" in trigger_hits or "coercive_state_power" in trigger_hits)
+        and ("deported" in text or "detained" in text or "removed" in text or "transfer" in text)
+        and strong_count >= 1
+    ):
+        return "Executive Order / Agency Action", "Confirmed Action"
+
+    if (
+        category_fit == "Direct"
+        and "election_interference" in trigger_hits
+        and strong_count >= 1
+    ):
+        return "Election Administration Action", "Confirmed Action"
+
+    if (
+        category_fit == "Direct"
+        and "military_politicization" in trigger_hits
+        and strong_count >= 1
+    ):
+        return "Military / Security Deployment", "Confirmed Action"
+
+    if (
+        category_fit == "Direct"
+        and "press_intimidation" in trigger_hits
+        and strong_count >= 1
+    ):
+        return "Media Restriction / Journalist Targeting", "Confirmed Action"
+
+    return event_type, event_definiteness
 
 
 def classify_event_definiteness(event_type: str) -> str:
@@ -529,6 +595,10 @@ def determine_governing_function(
         functions.add("Civil Liberties Protection")
     if "coercive_state_power" in trigger_hits:
         functions.add("Lawful Force")
+    if "military_politicization" in trigger_hits:
+        functions.add("Lawful Force")
+    if "legal_retaliation" in trigger_hits:
+        functions.add("Executive Constraint")
 
     if not functions:
         return "Multiple" if len(trigger_hits) >= 2 else "Executive Constraint"
@@ -548,7 +618,7 @@ def determine_threat_cluster(
     trigger_hits: dict[str, list[str]],
     oversight_failure_flag: str,
 ) -> str:
-    if "weaponized_justice" in trigger_hits:
+    if "weaponized_justice" in trigger_hits or "legal_retaliation" in trigger_hits:
         return "DOJ_TARGETING_OPPONENTS_2026"
     if "court_defiance" in trigger_hits and "due_process" in trigger_hits:
         return "COURT_DEFIANCE_DUE_PROCESS_2026"
@@ -560,6 +630,8 @@ def determine_threat_cluster(
         return "PRESS_INTIMIDATION_2026"
     if "institutional_capture" in trigger_hits:
         return "WATCHDOG_CAPTURE_2026"
+    if "military_politicization" in trigger_hits:
+        return "MILITARY_POLITICIZATION_2026"
     if primary_signal == "Executive overreach" and category == "Institutional Checks & Anti-Corruption":
         return "EXECUTIVE_OVERSIGHT_EROSION_2026"
     return ""
@@ -610,6 +682,12 @@ def compute_cluster_escalation_score(
     if "court_defiance" in trigger_hits:
         score += 2
     if "election_interference" in trigger_hits:
+        score += 2
+    if "press_intimidation" in trigger_hits:
+        score += 2
+    if "due_process" in trigger_hits:
+        score += 2
+    if "military_politicization" in trigger_hits:
         score += 2
 
     return score
@@ -681,6 +759,14 @@ def compute_row_escalation_score(
     if "court_defiance" in trigger_hits:
         score += 2
     if "election_interference" in trigger_hits:
+        score += 2
+    if "press_intimidation" in trigger_hits:
+        score += 2
+    if "due_process" in trigger_hits:
+        score += 2
+    if "military_politicization" in trigger_hits:
+        score += 2
+    if "legal_retaliation" in trigger_hits:
         score += 2
 
     score += freshness_bonus(published_at)
@@ -828,6 +914,17 @@ def build_row(item: Any) -> dict[str, str]:
     event_type = classify_event_type(text, exclusion_terms)
     event_definiteness = classify_event_definiteness(event_type)
     category_fit = classify_category_fit(category, primary_signal, trigger_hits, entity_hits)
+
+    event_type, event_definiteness = promote_event_type_and_definiteness(
+        source_role=source_role,
+        event_type=event_type,
+        event_definiteness=event_definiteness,
+        category_fit=category_fit,
+        trigger_hits=trigger_hits,
+        primary_signal=primary_signal,
+        text=text,
+    )
+
     democratic_consequence = classify_democratic_consequence(
         event_type, category_fit, trigger_hits, primary_signal
     )
