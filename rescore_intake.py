@@ -47,47 +47,36 @@ def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
-def repair_legacy_note_damage(row: dict[str, str]) -> dict[str, str]:
-    repaired = dict(row)
-    report_section = clean_text(repaired.get("report_section", ""))
-    notes = clean_text(repaired.get("notes", ""))
-
-    if not notes and report_section.startswith("AUTO:"):
-        repaired["notes"] = report_section
-        repaired["report_section"] = ""
-
-    if clean_text(repaired.get("report_section", "")).startswith("AUTO:"):
-        repaired["report_section"] = ""
-
-    return repaired
-
-
 def rescore_rows(existing_rows: list[dict[str, str]]) -> list[dict[str, str]]:
     rescored: list[dict[str, str]] = []
 
     for old in existing_rows:
-        repaired_old = repair_legacy_note_damage(old)
-
         new_row = build_row_from_values(
-            title=clean_text(repaired_old.get("title", "")),
-            summary=clean_text(repaired_old.get("summary", "")),
-            source_name=clean_text(repaired_old.get("source_name", "")),
-            source_tier=clean_text(repaired_old.get("source_tier", "")),
-            source_role=clean_text(repaired_old.get("source_role", "evidence")),
-            source_reliability=clean_text(repaired_old.get("source_reliability", "")),
-            published_at=clean_text(repaired_old.get("published_at", "")),
-            link=clean_text(repaired_old.get("link", "")),
-            existing_row=repaired_old,
+            title=clean_text(old.get("title", "")),
+            summary=clean_text(old.get("summary", "")),
+            source_name=clean_text(old.get("source_name", "")),
+            source_tier=clean_text(old.get("source_tier", "")),
+            source_role=clean_text(old.get("source_role", "evidence")),
+            source_reliability=clean_text(old.get("source_reliability", "")),
+            published_at=clean_text(old.get("published_at", "")),
+            link=clean_text(old.get("link", "")),
+            existing_row=old,
         )
 
         for field in MANUAL_FIELDS:
-            if field in repaired_old:
-                new_row[field] = clean_text(repaired_old.get(field, ""))
+            if field in old:
+                new_row[field] = clean_text(old.get(field, ""))
 
-        if clean_text(repaired_old.get("date_collected", "")):
-            new_row["date_collected"] = clean_text(repaired_old["date_collected"])
+        if clean_text(old.get("date_collected", "")):
+            new_row["date_collected"] = clean_text(old["date_collected"])
 
-        if not clean_text(new_row.get("notes", "")) and clean_text(new_row.get("report_section", "")).startswith("AUTO:"):
+        # Extra legacy repair:
+        # If notes is blank and report_section still carries the old AUTO blob,
+        # move it into notes and clear report_section.
+        if (
+            not clean_text(new_row.get("notes", ""))
+            and clean_text(new_row.get("report_section", "")).startswith("AUTO:")
+        ):
             new_row["notes"] = clean_text(new_row["report_section"])
             new_row["report_section"] = ""
 
@@ -97,6 +86,10 @@ def rescore_rows(existing_rows: list[dict[str, str]]) -> list[dict[str, str]]:
 
 
 def column_index_to_a1(col_index: int) -> str:
+    """
+    Convert 1-based column index to Sheets column letters.
+    Example: 1 -> A, 26 -> Z, 27 -> AA, 36 -> AJ
+    """
     result = ""
     while col_index > 0:
         col_index, remainder = divmod(col_index - 1, 26)
@@ -124,7 +117,7 @@ def print_change_summary(before: list[dict[str, str]], after: list[dict[str, str
 
     for old, new in zip(before, after):
         row_changed = False
-        for field in DERIVED_FIELDS.union({"notes", "report_section"}):
+        for field in DERIVED_FIELDS:
             if clean_text(old.get(field, "")) != clean_text(new.get(field, "")):
                 changed_cells += 1
                 row_changed = True
