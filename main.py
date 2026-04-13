@@ -58,6 +58,39 @@ HEADERS = [
     "notes",
 ]
 
+DERIVED_FIELDS = {
+    "democracy_redline_category",
+    "primary_signal",
+    "secondary_signal",
+    "confidence",
+    "editor_priority",
+    "admission_decision",
+    "event_type",
+    "category_fit",
+    "event_definiteness",
+    "democratic_consequence",
+    "needs_manual_review",
+    "evidence_strength",
+    "month_assigned",
+    "include_in_report",
+    "score_impact_candidate",
+    "threat_cluster",
+    "cluster_status",
+    "cluster_escalation_score",
+    "governing_function",
+    "oversight_failure_flag",
+    "report_section",
+    "duplicate_cluster",
+}
+
+MANUAL_FIELDS = {
+    "review_status",
+    "final_disposition",
+    "reviewed_by",
+    "reviewed_on",
+    "notes",
+}
+
 CONCRETE_EVENT_TYPES = {
     "Court Filing",
     "Court Ruling",
