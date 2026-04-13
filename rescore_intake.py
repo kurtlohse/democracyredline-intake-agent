@@ -63,12 +63,10 @@ def rescore_rows(existing_rows: list[dict[str, str]]) -> list[dict[str, str]]:
             existing_row=old,
         )
 
-        # Preserve all manual columns exactly as-is.
         for field in MANUAL_FIELDS:
             if field in old:
                 new_row[field] = clean_text(old.get(field, ""))
 
-        # Preserve date_collected if it already exists.
         if clean_text(old.get("date_collected", "")):
             new_row["date_collected"] = clean_text(old["date_collected"])
 
@@ -77,14 +75,30 @@ def rescore_rows(existing_rows: list[dict[str, str]]) -> list[dict[str, str]]:
     return rescored
 
 
+def column_index_to_a1(col_index: int) -> str:
+    """
+    Convert 1-based column index to Sheets column letters.
+    Example: 1 -> A, 26 -> Z, 27 -> AA, 36 -> AJ
+    """
+    result = ""
+    while col_index > 0:
+        col_index, remainder = divmod(col_index - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
+
 def update_sheet_in_place(worksheet, rows: list[dict[str, str]]) -> None:
     all_values: list[list[str]] = [HEADERS]
     for row in rows:
         all_values.append([row.get(header, "") for header in HEADERS])
 
-    end_col = chr(ord("A") + len(HEADERS) - 1)
+    end_col = column_index_to_a1(len(HEADERS))
     end_row = len(all_values)
-    worksheet.update(f"A1:{end_col}{end_row}", all_values)
+
+    worksheet.update(
+        values=all_values,
+        range_name=f"A1:{end_col}{end_row}",
+    )
 
 
 def print_change_summary(before: list[dict[str, str]], after: list[dict[str, str]]) -> None:
@@ -129,31 +143,11 @@ def main() -> None:
         print("Set DRY_RUN=false to write rescored rows back to the Intake sheet.")
         return
 
-    def column_index_to_a1(col_index: int) -> str:
-    """
-    Convert 1-based column index to Excel/Sheets column letters.
-    Example: 1 -> A, 26 -> Z, 27 -> AA
-    """
-    result = ""
-    while col_index > 0:
-        col_index, remainder = divmod(col_index - 1, 26)
-        result = chr(65 + remainder) + result
-    return result
-
-
-def update_sheet_in_place(worksheet, rows: list[dict[str, str]]) -> None:
-    all_values: list[list[str]] = [HEADERS]
-    for row in rows:
-        all_values.append([row.get(header, "") for header in HEADERS])
-
-    end_col = column_index_to_a1(len(HEADERS))
-    end_row = len(all_values)
-
-    worksheet.update(
-        values=all_values,
-        range_name=f"A1:{end_col}{end_row}",
+    update_sheet_in_place(worksheet, rescored_rows)
+    print(
+        f"Updated worksheet 'Intake' with {len(rescored_rows)} rescored rows at "
+        f"{datetime.now(timezone.utc).isoformat()}"
     )
-    print(f"Updated worksheet 'Intake' with {len(rescored_rows)} rescored rows at {datetime.now(timezone.utc).isoformat()}")
 
 
 if __name__ == "__main__":
