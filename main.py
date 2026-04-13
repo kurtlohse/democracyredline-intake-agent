@@ -58,6 +58,39 @@ HEADERS = [
     "notes",
 ]
 
+DERIVED_FIELDS = {
+    "democracy_redline_category",
+    "primary_signal",
+    "secondary_signal",
+    "confidence",
+    "editor_priority",
+    "admission_decision",
+    "event_type",
+    "category_fit",
+    "event_definiteness",
+    "democratic_consequence",
+    "needs_manual_review",
+    "evidence_strength",
+    "month_assigned",
+    "include_in_report",
+    "score_impact_candidate",
+    "threat_cluster",
+    "cluster_status",
+    "cluster_escalation_score",
+    "governing_function",
+    "oversight_failure_flag",
+    "report_section",
+    "duplicate_cluster",
+}
+
+MANUAL_FIELDS = {
+    "review_status",
+    "final_disposition",
+    "reviewed_by",
+    "reviewed_on",
+    "notes",
+}
+
 CONCRETE_EVENT_TYPES = {
     "Court Filing",
     "Court Ruling",
@@ -150,11 +183,15 @@ def evidence_strength_from_reliability(value: Any) -> str:
     return "Weak"
 
 
+def combined_text_from_fields(title: str, summary: str, source_name: str) -> str:
+    return normalize(f"{title} {summary} {source_name}")
+
+
 def combined_text(item: Any) -> str:
     title = clean_text(getattr(item, "title", ""))
     summary = clean_text(getattr(item, "summary", ""))
     source_name = clean_text(getattr(item, "source_name", ""))
-    return normalize(f"{title} {summary} {source_name}")
+    return combined_text_from_fields(title, summary, source_name)
 
 
 def compile_phrase_pattern(term: str) -> re.Pattern[str]:
@@ -162,7 +199,7 @@ def compile_phrase_pattern(term: str) -> re.Pattern[str]:
     parts = [re.escape(p) for p in term.split() if p]
     if not parts:
         return re.compile(r"$^")
-    joined = r"[\s\-/,:;()']+".join(parts)
+    joined = r"[\s\-/,:;()'\"]+".join(parts)
     return re.compile(rf"(?<!\w){joined}(?!\w)", re.IGNORECASE)
 
 
@@ -268,30 +305,85 @@ def suggest_primary_signal(text: str) -> str:
 
 
 def suggest_category(text: str, primary_signal: str) -> str:
+    # Prefer legal retaliation before election language, so law-firm targeting
+    # stories do not get mis-bucketed into Election Integrity.
+    if any(
+        compile_phrase_pattern(k).search(text)
+        for k in [
+            "sanctions against attorneys",
+            "sanctions against lawyers",
+            "targeted attorneys",
+            "retaliated against lawyers",
+            "political retaliation",
+            "retaliation against law firms",
+            "retaliation against lawyers",
+            "retaliation against counsel",
+            "retaliation against firms",
+            "unconstitutional political retaliation",
+        ]
+    ):
+        return "Political Targeting / Weaponization of Justice"
+
     category_rules: list[tuple[str, list[str]]] = [
         (
-            "Election Integrity & Peaceful Transfer",
-            ["election", "ballot", "vote count", "certification", "elector", "voter roll", "peaceful transfer", "voter intimidation"],
+            "Rule of Law & Court Compliance",
+            [
+                "court order",
+                "injunction",
+                "ignored ruling",
+                "defied court",
+                "judicial order",
+                "supreme court",
+                "contempt",
+                "violation of court order",
+            ],
         ),
         (
-            "Rule of Law & Court Compliance",
-            ["court order", "injunction", "ignored ruling", "defied court", "judicial order", "supreme court", "contempt", "violation of court order"],
+            "Political Targeting / Weaponization of Justice",
+            [
+                "retaliatory investigation",
+                "political prosecution",
+                "selective prosecution",
+                "justice department targeted",
+                "grand jury against opponent",
+                "sanctions against attorneys",
+                "retaliation against law firms",
+            ],
+        ),
+        (
+            "Press Freedom & Information Control",
+            [
+                "journalist",
+                "newsroom",
+                "press access",
+                "media threat",
+                "reporter arrested",
+                "journalist barred",
+                "defunding npr",
+                "defunding pbs",
+                "reporters access",
+            ],
         ),
         (
             "Habeas Corpus & Due Process",
             ["habeas", "due process", "detention", "deportation", "rendition", "indefinite detention", "third country"],
         ),
         (
+            "Election Integrity & Peaceful Transfer",
+            [
+                "election",
+                "ballot",
+                "vote count",
+                "certification",
+                "elector",
+                "voter roll",
+                "peaceful transfer",
+                "voter intimidation",
+            ],
+        ),
+        (
             "Coercive State Power & Policing Norms",
             ["federal agents", "military deployment", "national guard", "insurrection act", "surveillance", "raids", "troops deployed"],
-        ),
-        (
-            "Political Targeting / Weaponization of Justice",
-            ["retaliatory investigation", "political prosecution", "selective prosecution", "justice department targeted", "grand jury against opponent", "sanctions against attorneys"],
-        ),
-        (
-            "Press Freedom & Information Control",
-            ["journalist", "newsroom", "press access", "media threat", "reporter arrested", "journalist barred", "defunding npr", "defunding pbs", "reporters access"],
         ),
         (
             "Civil Society & Associational Freedom",
@@ -352,66 +444,6 @@ def classify_event_type(text: str, exclusion_terms: list[str]) -> str:
     return "General Context"
 
 
-def promote_event_type_and_definiteness(
-    source_role: str,
-    event_type: str,
-    event_definiteness: str,
-    category_fit: str,
-    trigger_hits: dict[str, list[str]],
-    primary_signal: str,
-    text: str,
-) -> tuple[str, str]:
-    if source_role != "evidence":
-        return event_type, event_definiteness
-
-    if event_type != "General Context":
-        return event_type, event_definiteness
-
-    strong_count = strong_trigger_count(trigger_hits)
-
-    if (
-        category_fit == "Direct"
-        and (
-            "court_defiance" in trigger_hits
-            or ("press_intimidation" in trigger_hits and ("judge" in text or "court" in text))
-            or ("legal_retaliation" in trigger_hits and ("judge" in text or "court" in text))
-        )
-        and ("judge" in text or "court" in text or "ruled" in text or "order" in text or "violation" in text)
-    ):
-        return "Court Ruling", "Confirmed Action"
-
-    if (
-        category_fit == "Direct"
-        and ("due_process" in trigger_hits or "coercive_state_power" in trigger_hits)
-        and ("deported" in text or "detained" in text or "removed" in text or "transfer" in text)
-        and strong_count >= 1
-    ):
-        return "Executive Order / Agency Action", "Confirmed Action"
-
-    if (
-        category_fit == "Direct"
-        and "election_interference" in trigger_hits
-        and strong_count >= 1
-    ):
-        return "Election Administration Action", "Confirmed Action"
-
-    if (
-        category_fit == "Direct"
-        and "military_politicization" in trigger_hits
-        and strong_count >= 1
-    ):
-        return "Military / Security Deployment", "Confirmed Action"
-
-    if (
-        category_fit == "Direct"
-        and "press_intimidation" in trigger_hits
-        and strong_count >= 1
-    ):
-        return "Media Restriction / Journalist Targeting", "Confirmed Action"
-
-    return event_type, event_definiteness
-
-
 def classify_event_definiteness(event_type: str) -> str:
     if event_type in {
         "Court Ruling",
@@ -451,6 +483,53 @@ def classify_category_fit(
     return "Weak"
 
 
+def promote_event_type_and_definiteness(
+    source_role: str,
+    event_type: str,
+    event_definiteness: str,
+    category_fit: str,
+    trigger_hits: dict[str, list[str]],
+    text: str,
+) -> tuple[str, str]:
+    if source_role != "evidence":
+        return event_type, event_definiteness
+
+    if event_type != "General Context":
+        return event_type, event_definiteness
+
+    strong_count = strong_trigger_count(trigger_hits)
+
+    if (
+        category_fit == "Direct"
+        and (
+            "court_defiance" in trigger_hits
+            or ("press_intimidation" in trigger_hits and ("judge" in text or "court" in text))
+            or ("legal_retaliation" in trigger_hits and ("judge" in text or "court" in text))
+        )
+        and ("judge" in text or "court" in text or "ruled" in text or "order" in text or "violation" in text)
+    ):
+        return "Court Ruling", "Confirmed Action"
+
+    if (
+        category_fit == "Direct"
+        and ("due_process" in trigger_hits or "coercive_state_power" in trigger_hits)
+        and ("deported" in text or "detained" in text or "removed" in text or "transfer" in text)
+        and strong_count >= 1
+    ):
+        return "Executive Order / Agency Action", "Confirmed Action"
+
+    if category_fit == "Direct" and "election_interference" in trigger_hits and strong_count >= 1:
+        return "Election Administration Action", "Confirmed Action"
+
+    if category_fit == "Direct" and "military_politicization" in trigger_hits and strong_count >= 1:
+        return "Military / Security Deployment", "Confirmed Action"
+
+    if category_fit == "Direct" and "press_intimidation" in trigger_hits and strong_count >= 1:
+        return "Media Restriction / Journalist Targeting", "Confirmed Action"
+
+    return event_type, event_definiteness
+
+
 def classify_democratic_consequence(
     event_type: str,
     category_fit: str,
@@ -462,16 +541,12 @@ def classify_democratic_consequence(
 
     if category_fit == "Direct" and event_type in CONCRETE_EVENT_TYPES - {"Court Filing"}:
         return "Immediate"
-
     if category_fit == "Direct" and event_type == "Court Filing":
         return "Material"
-
     if event_type == "Developing / Unconfirmed" and (trigger_count >= 2 or strong_count >= 1):
         return "Possible"
-
     if category_fit == "Partial" and primary_signal and (trigger_count >= 1 or strong_count >= 1):
         return "Possible"
-
     return "Remote"
 
 
@@ -612,7 +687,6 @@ def determine_oversight_failure_flag(trigger_hits: dict[str, list[str]]) -> str:
 
 
 def determine_threat_cluster(
-    text: str,
     primary_signal: str,
     category: str,
     trigger_hits: dict[str, list[str]],
@@ -624,7 +698,7 @@ def determine_threat_cluster(
         return "COURT_DEFIANCE_DUE_PROCESS_2026"
     if "election_interference" in trigger_hits:
         return "ELECTION_ADMIN_INTEGRITY_2026"
-    if oversight_failure_flag == "Yes" and ("coercive_state_power" in trigger_hits or "war powers" in text):
+    if oversight_failure_flag == "Yes" and "coercive_state_power" in trigger_hits:
         return "WAR_POWERS_OVERSIGHT_2026"
     if "press_intimidation" in trigger_hits:
         return "PRESS_INTIMIDATION_2026"
@@ -677,18 +751,17 @@ def compute_cluster_escalation_score(
     elif len(trigger_hits) == 1:
         score += 1
 
-    if "weaponized_justice" in trigger_hits:
-        score += 2
-    if "court_defiance" in trigger_hits:
-        score += 2
-    if "election_interference" in trigger_hits:
-        score += 2
-    if "press_intimidation" in trigger_hits:
-        score += 2
-    if "due_process" in trigger_hits:
-        score += 2
-    if "military_politicization" in trigger_hits:
-        score += 2
+    for key in (
+        "weaponized_justice",
+        "court_defiance",
+        "election_interference",
+        "press_intimidation",
+        "due_process",
+        "military_politicization",
+        "legal_retaliation",
+    ):
+        if key in trigger_hits:
+            score += 2
 
     return score
 
@@ -754,20 +827,17 @@ def compute_row_escalation_score(
     if source_tier == "Tier 1":
         score += 1
 
-    if "weaponized_justice" in trigger_hits:
-        score += 2
-    if "court_defiance" in trigger_hits:
-        score += 2
-    if "election_interference" in trigger_hits:
-        score += 2
-    if "press_intimidation" in trigger_hits:
-        score += 2
-    if "due_process" in trigger_hits:
-        score += 2
-    if "military_politicization" in trigger_hits:
-        score += 2
-    if "legal_retaliation" in trigger_hits:
-        score += 2
+    for key in (
+        "weaponized_justice",
+        "court_defiance",
+        "election_interference",
+        "press_intimidation",
+        "due_process",
+        "military_politicization",
+        "legal_retaliation",
+    ):
+        if key in trigger_hits:
+            score += 2
 
     score += freshness_bonus(published_at)
 
@@ -894,13 +964,19 @@ def auto_notes(
     return "AUTO: " + " | ".join(parts)
 
 
-def build_row(item: Any) -> dict[str, str]:
-    published_at = clean_text(getattr(item, "published_at", ""))
-    source_reliability = clean_text(getattr(item, "source_reliability", ""))
-    source_tier = clean_text(getattr(item, "source_tier", ""))
-    source_name = clean_text(getattr(item, "source_name", ""))
-    source_role = clean_text(getattr(item, "source_role", "evidence"))
-    text = combined_text(item)
+def build_row_from_values(
+    *,
+    title: str,
+    summary: str,
+    source_name: str,
+    source_tier: str,
+    source_role: str,
+    source_reliability: str,
+    published_at: str,
+    link: str,
+    existing_row: dict[str, str] | None = None,
+) -> dict[str, str]:
+    text = combined_text_from_fields(title, summary, source_name)
 
     exclusion_terms = exclusion_hits(text)
     trigger_hits = trigger_group_hits(text)
@@ -921,7 +997,6 @@ def build_row(item: Any) -> dict[str, str]:
         event_definiteness=event_definiteness,
         category_fit=category_fit,
         trigger_hits=trigger_hits,
-        primary_signal=primary_signal,
         text=text,
     )
 
@@ -944,7 +1019,7 @@ def build_row(item: Any) -> dict[str, str]:
 
     oversight_failure_flag = determine_oversight_failure_flag(trigger_hits)
     governing_function = determine_governing_function(category, trigger_hits, oversight_failure_flag)
-    threat_cluster = determine_threat_cluster(text, primary_signal, category, trigger_hits, oversight_failure_flag)
+    threat_cluster = determine_threat_cluster(primary_signal, category, trigger_hits, oversight_failure_flag)
     cluster_score = compute_cluster_escalation_score(
         source_role=source_role,
         source_tier=source_tier,
@@ -988,17 +1063,33 @@ def build_row(item: Any) -> dict[str, str]:
         editor_priority=editor_priority,
     )
 
+    prev = existing_row or {}
+    notes_value = clean_text(prev.get("notes", ""))
+    if not notes_value or notes_value.startswith("AUTO:"):
+        notes_value = auto_notes(
+            src_priority=src_priority,
+            admission=admission,
+            event_type=event_type,
+            category_fit=category_fit,
+            democratic_consequence=democratic_consequence,
+            trigger_hits=trigger_hits,
+            entity_hits=entity_hits,
+            escalation_score=row_score,
+            threat_cluster=threat_cluster,
+            cluster_status=cluster_status,
+        )
+
     row = {
-        "date_collected": datetime.now(timezone.utc).isoformat(),
+        "date_collected": clean_text(prev.get("date_collected", "")) or datetime.now(timezone.utc).isoformat(),
         "published_at": published_at,
         "source_name": source_name,
         "source_tier": source_tier,
         "source_role": source_role,
-        "title": clean_text(getattr(item, "title", "")),
-        "summary": clean_text(getattr(item, "summary", "")),
-        "link": clean_text(getattr(item, "link", "")),
+        "title": title,
+        "summary": summary,
+        "link": link,
         "source_reliability": source_reliability,
-        "review_status": "New",
+        "review_status": clean_text(prev.get("review_status", "")) or "New",
         "democracy_redline_category": category,
         "primary_signal": primary_signal,
         "secondary_signal": "",
@@ -1019,26 +1110,28 @@ def build_row(item: Any) -> dict[str, str]:
         "cluster_escalation_score": str(cluster_score) if threat_cluster else "",
         "governing_function": governing_function,
         "oversight_failure_flag": oversight_failure_flag,
-        "report_section": "",
+        "report_section": clean_text(prev.get("report_section", "")),
         "duplicate_cluster": "",
-        "final_disposition": "",
-        "reviewed_by": "",
-        "reviewed_on": "",
-        "notes": auto_notes(
-            src_priority=src_priority,
-            admission=admission,
-            event_type=event_type,
-            category_fit=category_fit,
-            democratic_consequence=democratic_consequence,
-            trigger_hits=trigger_hits,
-            entity_hits=entity_hits,
-            escalation_score=row_score,
-            threat_cluster=threat_cluster,
-            cluster_status=cluster_status,
-        ),
+        "final_disposition": clean_text(prev.get("final_disposition", "")),
+        "reviewed_by": clean_text(prev.get("reviewed_by", "")),
+        "reviewed_on": clean_text(prev.get("reviewed_on", "")),
+        "notes": notes_value,
     }
     row["duplicate_cluster"] = make_duplicate_cluster_seed(row)
     return row
+
+
+def build_row(item: Any) -> dict[str, str]:
+    return build_row_from_values(
+        title=clean_text(getattr(item, "title", "")),
+        summary=clean_text(getattr(item, "summary", "")),
+        source_name=clean_text(getattr(item, "source_name", "")),
+        source_tier=clean_text(getattr(item, "source_tier", "")),
+        source_role=clean_text(getattr(item, "source_role", "evidence")),
+        source_reliability=clean_text(getattr(item, "source_reliability", "")),
+        published_at=clean_text(getattr(item, "published_at", "")),
+        link=clean_text(getattr(item, "link", "")),
+    )
 
 
 def refine_duplicate_clusters(rows: list[dict[str, str]]) -> None:
