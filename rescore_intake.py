@@ -129,7 +129,30 @@ def main() -> None:
         print("Set DRY_RUN=false to write rescored rows back to the Intake sheet.")
         return
 
-    update_sheet_in_place(worksheet, rescored_rows)
+    def column_index_to_a1(col_index: int) -> str:
+    """
+    Convert 1-based column index to Excel/Sheets column letters.
+    Example: 1 -> A, 26 -> Z, 27 -> AA
+    """
+    result = ""
+    while col_index > 0:
+        col_index, remainder = divmod(col_index - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
+
+def update_sheet_in_place(worksheet, rows: list[dict[str, str]]) -> None:
+    all_values: list[list[str]] = [HEADERS]
+    for row in rows:
+        all_values.append([row.get(header, "") for header in HEADERS])
+
+    end_col = column_index_to_a1(len(HEADERS))
+    end_row = len(all_values)
+
+    worksheet.update(
+        values=all_values,
+        range_name=f"A1:{end_col}{end_row}",
+    )
     print(f"Updated worksheet 'Intake' with {len(rescored_rows)} rescored rows at {datetime.now(timezone.utc).isoformat()}")
 
 
